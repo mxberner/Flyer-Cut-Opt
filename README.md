@@ -9,5 +9,7 @@ A host of projects designed to optimize the machining of flyers for HELIX with A
 `data.xslx`: excel sheet with rows that contain tested laser parameters.
 
 `5x5stack.lbrn2`: formatted lightburn project template for use in script.
+
 `6x2stack.lbrn2`: formatted lightburn project template for use in script.
+
 `7x7stack.lbrn2`: row-wise formatted lightburn project template for use in script.
