@@ -101,8 +101,8 @@ def apply_row_to_cut(root, df, row_idx, flyer_prefix="F"):
             except Exception:
                 pass  # fallback, leave as-is if not numeric
 
-        if col == "speed":
-            new_value = ui_to_xml_speed(new_value)
+        #if col == "speed":
+            #new_value = ui_to_xml_speed(new_value)
 
         elem = cut.find(f"./{col}")
         if elem is not None:
