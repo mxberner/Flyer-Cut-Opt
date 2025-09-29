@@ -74,8 +74,8 @@ else:
     print(f"Template has {flyer_count} flyers.")
 
 
-# UNIT CONVERSION FOR SPEED: MISMATCH FROM UI TO XML
-def ui_to_xml_speed(ui_mm_per_min):
+# UNIT CONVERSION FOR SPEED
+def xml_speed_conversion(ui_mm_per_min):
     # UI → XML: mm/min to mm/s
     try:
         return float(ui_mm_per_min) / 60.0
@@ -100,9 +100,11 @@ def apply_row_to_cut(root, df, row_idx, flyer_prefix="F"):
                 new_value = int(float(new_value))
             except Exception:
                 pass  # fallback, leave as-is if not numeric
-
-        #if col == "speed":
-            #new_value = ui_to_xml_speed(new_value)
+        if col == "frequency":
+            try:
+                new_value = int(float(new_value))
+            except Exception:
+                pass  # fallback, leave as-is if not numeric
 
         elem = cut.find(f"./{col}")
         if elem is not None:
