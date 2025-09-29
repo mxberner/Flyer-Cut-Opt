@@ -47,22 +47,24 @@
         <maxPower Value="100"/>
         <maxPower2 Value="20"/>
         <speed Value="5"/>
-        <frequency Value="500000"/>
-        <QPulseWidth Value="10"/>
-        <numPasses Value="10"/>
-        <priority Value="2"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r1-c1"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
-    <CutSetting type="Scan">
+    <CutSetting type="Cut">
         <index Value="2"/>
         <name Value="F2"/>
         <maxPower Value="80"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <frequency Value="200000"/>
-        <numPasses Value="4"/>
-        <interval Value="0.075"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r1-c2"/>
         <priority Value="3"/>
         <doOutput Value="0"/>
         <tabCount Value="1"/>
@@ -74,7 +76,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="4"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r1-c1"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -84,7 +90,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="5"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r1-c4"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -94,7 +104,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="6"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r1-c5"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -104,7 +118,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="7"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r2-c1"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -114,7 +132,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="8"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r2-c2"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -124,7 +146,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="9"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r2-c3"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -134,7 +160,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="10"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r2-c4"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -144,7 +174,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="11"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r2-c5"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -154,7 +188,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="12"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r3-c1"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -164,7 +202,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="13"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r3-c2"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -174,7 +216,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="14"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r3-c3"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -184,7 +230,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="15"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r3-c4"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -194,7 +244,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="16"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r3-c5"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -204,7 +258,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="17"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r4-c1"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -214,7 +272,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="18"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r4-c2"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -224,7 +286,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="19"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r4-c3"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -234,7 +300,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="20"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r4-c4"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -244,7 +314,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="21"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r4-c5"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -254,7 +328,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="22"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r5-c1"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -264,7 +342,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="23"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r5-c2"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -274,7 +356,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="24"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r5-c3"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -284,7 +370,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="25"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r5-c4"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
@@ -294,7 +384,11 @@
         <maxPower Value="20"/>
         <maxPower2 Value="20"/>
         <speed Value="100"/>
-        <priority Value="26"/>
+        <frequency Value="1000"/>
+        <QPulseWidth Value="100"/>
+        <numPasses Value="1"/>
+        <subname Value="flyer-r5-c5"/>
+        <priority Value="3"/>
         <tabCount Value="1"/>
         <tabCountMax Value="1"/>
     </CutSetting>
