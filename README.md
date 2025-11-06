@@ -2,7 +2,7 @@
 A host of projects designed to optimize the machining of flyers for HELIX with AIMD. 
 
 ## Execution
-To execute to main script, `cfstack.py`, provide the required positional arguments:
+To execute to create flyer stack, `cfstack.py`, provide the required positional arguments:
 `python cfstack.py {excel-sheet} {config-json}`
 
 
