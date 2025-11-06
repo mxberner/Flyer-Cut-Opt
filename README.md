@@ -1,6 +1,14 @@
 # Flyer-Cut-Opt
 A host of projects designed to optimize the machining of flyers for HELIX with AIMD. 
 
+## Execution
+To execute to main script, `cfstack.py`, provide the required positional arguments:
+`python cfstack.py {excel-sheet} {config-json}`
+
+
+The excel-sheet expects columns maxPower, QPulseWidth, speed,	frequency, and numPasses (with these labels in row1). The script should automatically find a properly formatted template file — specifically containing some number of sequential flyer layers from labelled F1 to F#.
+
+
 ## Contents
 `cfstack.py`: script accepts a excel sheet of laser parameters and JSON and compiles a `.lbrn2` lightburn project file according to the provided specifications.
 
