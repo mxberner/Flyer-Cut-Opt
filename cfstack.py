@@ -130,7 +130,7 @@ def rename_text_exact(root, old_text, new_text, case_insensitive=True):
             changed += 1
     return changed
 
-validation_count = rename_text_exact(template_root, params.get("template_placeholder_ID", "FLYIDK"), params.get("StackID", "001"))
+validation_count = rename_text_exact(template_root, params.get("template_placeholder_ID", "FLYIDK"), params.get("ID", "001"))
 print(f"Replaced {validation_count} instances of flyer ID placeholder.")
 
 OUTPUT_FILE = params.get("output_dir", "updated.lbrn2")
