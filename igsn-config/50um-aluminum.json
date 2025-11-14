@@ -1,0 +1,23 @@
+{
+    "version": "JHAMAB00012_1.0",
+    "timestamp": "2025-11-14T07:19:26Z",
+
+    "material": {
+        "name": "Aluminum Foil",
+        "local_id": "50 µm Al Foil",
+        "igsn": "JHAMAB00012",
+        "link": "https://data.htmdec.org/#deposition/68de2202085f954f7d16aabd",
+        "distributor": "AluFoil",
+        "thickness_um": 50,
+        "purity_percent": null
+    },
+    "cut": {
+        "min_power": 0,
+        "max_power": 100,
+        "kerf_offset": 0,
+        "z_offset_per_pass": 0,
+        "speed_mm_s": 0,
+        "passes": 1,
+        "air_assist": false
+  }
+}
