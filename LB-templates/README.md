@@ -1,9 +1,8 @@
-# LightBurn File Templates
+# LightBurn Project Templates
 The main script programmatically parses formatted LightBurn `.lbrn2` project files for data extraction and templatting. 
 
 ## Creating a New Template
-For preservation purposes, please do not edit the names or the content of the existing LightBurn templates, as their use in prior executions are logged for accountability. 
-
+For preservation purposes, please do not edit the names or the content of the existing LightBurn templates, as their use in prior executions will be logged for traceability. Creating a new template from a copy of another is encouraged.
 
 The script expects template project files to follow this structure:
 1. "Flyer" cuts, labelled "F#", starting from 1 to N. The numbers must be consecutive to be found. 

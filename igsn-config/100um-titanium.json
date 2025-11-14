@@ -1,0 +1,23 @@
+{
+    "version": "JHAMAB00009_1.0",
+    "timestamp": "2025-11-13T19:00:56Z",
+
+    "material": {
+        "name": "Titanium Foil",
+        "local_id": "100 µm Ti 4N Foil",
+        "igsn": "JHAMAB00009",
+        "link": "https://data.htmdec.org/#deposition/68de2086c18c9c2ae35d5025",
+        "distributor": "AlfaChemistry",
+        "thickness_um": 100,
+        "purity_percent": 99.99
+    },
+    "cut": {
+        "min_power": 0,
+        "max_power": 100,
+        "kerf_offset": 0,
+        "z_offset_per_pass": 0,
+        "speed_mm_s": 0,
+        "passes": 1,
+        "air_assist": false
+  }
+}
