@@ -1,6 +1,8 @@
 {
-  "template": "5x5stack.lbrn2",
+  "template": "LB-templates/5x5stack.lbrn2",
   "template_placeholder_ID": "FLYID",
   "ID": "123",
-  "output_dir": "newupdated.lbrn2"
+  "output_dir": "output.lbrn2",
+  "igsn_config": "igsn-config/100um-titanium.json",
+  "operator": null
 }

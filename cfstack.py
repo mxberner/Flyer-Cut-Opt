@@ -1,17 +1,24 @@
 """
 # cfstack.py
-The following script is used to create a LightBurn file `lbrn2` for a stack of custom flyers provided in a CSV file. 
+The following script is used to create a LightBurn file `lbrn2` for a stack of custom flyers.  
 """
 
 import argparse
+import logging
 import pandas as pd
 import os
+import sys
 import json
 from pathlib import Path
 from datetime import datetime
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 
+
+
+"""
+Parse Command Line Arguments
+"""
 def parse_args():
     parser = argparse.ArgumentParser(description="LightBurn Flyer Stack Creator")
     parser.add_argument(
@@ -30,18 +37,36 @@ def load_params(json_file):
         raise FileNotFoundError(f"JSON file not found: {path}")
     return json.loads(path.read_text())
 
-
+# Load input, process Excel
 args = parse_args()
 params = load_params(args.json)
 INPUT_XLSX = args.excel
 df = pd.read_excel(INPUT_XLSX, engine='openpyxl', usecols="A:E") #First 5 columns
 df.columns = ['maxPower', 'QPulseWidth', 'speed', 'frequency', 'numPasses']
 
-TEMPLATE_FILE = params.get("template", "6x2stack.lbrn2")
+logging.basicConfig(
+    filename= params.get("log_file", "cfstack.log"),
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    filemode="a",    
+)
+
+# Load LightBurn Template
+TEMPLATE_FILE = params.get("template", None)
+if TEMPLATE_FILE is None:
+    raise ValueError("No template specified in config (missing 'template' field).")
+if not os.path.exists(TEMPLATE_FILE):
+    raise FileNotFoundError(f"Template file '{TEMPLATE_FILE}' was not found.")
+
+
 template_tree = ET.parse(TEMPLATE_FILE) 
 template_root = template_tree.getroot()
 print("Template project loaded.")
 
+
+"""
+Return CutSetting by name.
+"""
 def get_cut(root,name):
     search_norm = name.strip().lower()
     for cut in root.findall(".//CutSetting"):
@@ -52,6 +77,10 @@ def get_cut(root,name):
                     return cut
     return None
 
+
+"""
+Count sequential flyers in template starting at F{start}.
+"""
 def count_flyers(root,start=1):
     count = 0
     i = start
@@ -68,8 +97,9 @@ def count_flyers(root,start=1):
 
 flyer_count = count_flyers(template_root)
 
-if (flyer_count == 0):
-    print("ERROR: No flyers found in template...")
+if flyer_count == 0:
+    print(f"ERROR: No flyers found in template '{TEMPLATE_FILE}'...")
+    sys.exit(1) 
 else:
     print(f"Template has {flyer_count} flyers.")
 
@@ -83,6 +113,9 @@ def xml_speed_conversion(ui_mm_per_min):
         return ui_mm_per_min
 
 
+"""
+Apply DataFrame row to CutSetting.
+"""
 def apply_row_to_cut(root, df, row_idx, flyer_prefix="F"):
     cut_name = f"{flyer_prefix}{row_idx+1}"  # row 0 → F1, row 1 → F2, ...
     cut = get_cut(root, cut_name)
@@ -121,6 +154,10 @@ def apply_row_to_cut(root, df, row_idx, flyer_prefix="F"):
 for i in range(flyer_count):
     apply_row_to_cut(template_root, df, i)
 
+
+"""
+Rename exact text matches in Shape elements.
+"""
 def rename_text_exact(root, old_text, new_text, case_insensitive=True):
     changed = 0
     for shape in root.findall(".//Shape[@Type='Text']"):
@@ -133,7 +170,17 @@ def rename_text_exact(root, old_text, new_text, case_insensitive=True):
 validation_count = rename_text_exact(template_root, params.get("template_placeholder_ID", "FLYIDK"), params.get("ID", "001"))
 print(f"Replaced {validation_count} instances of flyer ID placeholder.")
 
-OUTPUT_FILE = params.get("output_dir", "updated.lbrn2")
+OUTPUT_FILE = params.get("output_dir", None)
+if OUTPUT_FILE is None:
+    raise ValueError("No output specified in config (missing 'output_dir' field).")
+
+action = "overwritten" if os.path.exists(OUTPUT_FILE) else "generated"
+
 template_tree.write(OUTPUT_FILE, encoding="utf-8", xml_declaration=True)
 
 print(f"Updated project saved to {OUTPUT_FILE}.")
+
+logging.info(
+    f"{action.capitalize()} LightBurn file '{OUTPUT_FILE}' with config '{args.json}' "
+    f"from LB-template '{TEMPLATE_FILE}'."
+)
