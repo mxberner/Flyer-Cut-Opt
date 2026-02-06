@@ -3,10 +3,6 @@
 The following script is used to create a LightBurn file `lbrn2` for a stack of custom flyers.  
 """
 
-"""
-TODO:
- - support implementation of new config fields
-"""
 # region IMPORTS
 import argparse
 from email.mime import base
@@ -20,6 +16,30 @@ from datetime import datetime
 from copy import deepcopy
 import xml.etree.ElementTree as ET
 #endregion
+
+# region SETUP
+def parse_args():
+    """
+    Parse command-line arguments.
+    """
+    parser = argparse.ArgumentParser(description="LightBurn Flyer Stack Creator")
+    parser.add_argument(
+        "excel", type=str,
+        help="Excel input file path. COLS:{maxPower,QPulseWidth,speed,frequency,numPasses}."
+    )
+    parser.add_argument(
+        "json", type=str,
+        help="Path to config JSON."
+    )
+    parser.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        help="Mute console logging."
+    )
+    parser.add_argument("--verbose", "-v", action="store_true")
+    return parser.parse_args()
+
+args = parse_args()
 
 # region LOGGING
 LOG_FILE = "cfstack.log"
@@ -37,33 +57,17 @@ file_handler.setFormatter(logging.Formatter(
 ))
 logger.addHandler(file_handler)
 
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(logging.Formatter(
-    "[%(levelname)s] %(message)s"
-))
-logger.addHandler(console_handler)
+if not args.quiet:
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO if not args.verbose else logging.DEBUG)
+    console_handler.setFormatter(logging.Formatter(
+        "[%(levelname)s] %(message)s"
+    ))
+    logger.addHandler(console_handler)
 
+logging.info("-------------------Starting cfstack script-------------------")
 
-logging.info("=====Starting cfstack script=====")
 #endregion
-
-# region INPUTS
-def parse_args():
-    """
-    Parse command-line arguments.
-    """
-    parser = argparse.ArgumentParser(description="LightBurn Flyer Stack Creator")
-    parser.add_argument(
-        "excel", type=str,
-        help="Excel input file path. COLS:{maxPower,QPulseWidth,speed,frequency,numPasses}."
-    )
-    parser.add_argument(
-        "json", type=str,
-        help="Path to config JSON."
-    )
-    return parser.parse_args()
-
 
 def load_params(json_file):
     """
@@ -76,10 +80,9 @@ def load_params(json_file):
     return json.loads(path.read_text())
 
 # Load input parameterse
-args = parse_args()
 params = load_params(args.json)
 igsn_params = load_params(params.get("igsn_config", "igsn-config/default.json"))
-
+logging.debug("Loaded config JSON and IGSN config.")
 
 # Load Excel data
 INPUT_XLSX = args.excel
@@ -99,8 +102,8 @@ if not os.path.exists(TEMPLATE_FILE):
 
 template_tree = ET.parse(TEMPLATE_FILE) 
 template_root = template_tree.getroot()
-
-logging.info(f"Loaded template '{TEMPLATE_FILE}' and Excel '{INPUT_XLSX}'.")
+logging.info(f"Loaded config '{args.json}' and excel data '{INPUT_XLSX}'.")
+logging.info(f"Loaded template '{TEMPLATE_FILE}'.")
 logging.info(f"Loaded IGSN config '{params.get('igsn_config', '')}' with IGSN '{igsn_params.get('material', {}).get('igsn', 'N/A')}'.")
 
 def _safe_token(s: str) -> str:
@@ -153,8 +156,6 @@ def resolve_output_path(params, igsn_params, template_file: str) -> Path:
             return candidate
         i += 1
 
-
-
 #endregion
 
 # region MAIN
@@ -195,9 +196,6 @@ flyer_count = count_flyers(template_root)
 if flyer_count == 0:
     logging.error(f"No flyers found in template '{TEMPLATE_FILE}'...")
     sys.exit(1) 
-else:
-    logging.info(f"Loaded {flyer_count} unique flyers from template '{TEMPLATE_FILE}'.")
-
 
 # UNIT CONVERSION FOR SPEED
 def xml_speed_conversion(ui_mm_per_min):
@@ -243,7 +241,8 @@ def apply_row_to_cut(root, df, row_idx, flyer_prefix="F"):
             new_elem = ET.SubElement(cut, col)
             new_elem.set("Value", str(new_value))
             logging.debug(f"Created new attribute '{col}' in CutSetting '{cut_name}' with Value={new_value}")
-
+    row_str = ", ".join(f"{k[:6]}={row[k]}" for k in df.columns)
+    logging.debug(f"Applied row [{row_idx}] to CutSetting '{cut_name}': {row_str}")
     return True
 
 for i in range(flyer_count):
@@ -272,8 +271,6 @@ elif validation_count > 1:
 else:
     logging.info(f"Set stack ID to '{params.get('ID', '0000')}'.")
 
-
-
 OPERATOR = params.get("operator", "Unknown operator")
 if (OPERATOR is None) or (OPERATOR.strip() == ""):
     logging.warning("Operator name not provided in config.")
@@ -288,5 +285,5 @@ logging.info(
     f"{action} LightBurn file '{OUTPUT_PATH}' with configs '{args.json}' and '{params.get('igsn_config', '')}' "
     f"from LB-template '{TEMPLATE_FILE}'."
 )
-logging.info("=====Finished cfstack script.=====")
+logging.info("-------------------Completed cfstack script-------------------")
 #endregion
