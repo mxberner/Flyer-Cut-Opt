@@ -10,5 +10,16 @@
   "output_append_ID": true,
   "output_append_template": true,
   "output_append_timestamp": false,
-  "output_overwrite": false
+  "output_overwrite": false,
+  "flyer_selection": {
+    "start": 0,
+    "end": 25,
+    "step": 1
+  },
+  "flyer_assignment":
+  {
+    "_comment": "flyer_assignment.style: exact | repeat_x | modulus_x",
+    "style": "exact",
+    "x": 1
+  }
 }

@@ -177,25 +177,60 @@ def get_cut(root,name):
 """
 Count sequential flyers in template starting at F{start}.
 """
-def count_flyers(root,start=1):
-    count = 0
-    i = start
+"""
+List flyers found in template within an inclusive numeric range.
 
-    while True:
-        cut = get_cut(root, f"F{i}")
+Selection format (from config):
+  "flyer_selection": {"start": 1, "end": 25, "step": 1}
+
+Returns a list of flyer numbers that actually exist in the template, e.g. [1,2,3,...].
+"""
+def list_flyers_in_range(root, start: int = 1, end: int | None = None, step: int = 1, flyer_prefix: str = "F"):
+    if end is None:
+        end = start
+    try:
+        start_i = int(start)
+        end_i = int(end)
+        step_i = int(step) if int(step) != 0 else 1
+    except Exception:
+        raise ValueError(f"Invalid flyer_selection: start={start}, end={end}, step={step}")
+
+    if step_i < 0:
+        step_i = abs(step_i)
+
+    lo, hi = (start_i, end_i) if start_i <= end_i else (end_i, start_i)
+
+    found: list[int] = []
+    missing: list[int] = []
+
+    for n in range(lo, hi + 1, step_i):
+        cut = get_cut(root, f"{flyer_prefix}{n}")
         if cut is None:
-            break
-        count += 1
-        i += 1
+            missing.append(n)
+        else:
+            found.append(n)
 
-    logging.debug(f"Found {count} sequential flyers starting at F{start}")
-    return count
+    logging.info(f"Flyer selection requested: {lo}..{hi} step {step_i}. Found {len(found)} flyer(s).")
+    if missing:
+        logging.debug(f"Missing flyers in template (within selection): {missing}")
+    logging.debug(f"Flyers found (within selection): {found}")
+    return found
 
-flyer_count = count_flyers(template_root)
 
-if flyer_count == 0:
-    logging.error(f"No flyers found in template '{TEMPLATE_FILE}'...")
-    sys.exit(1) 
+# Resolve flyer selection from config (defaults to a single flyer F1 if not provided)
+flyer_sel = params.get("flyer_selection", {}) or {}
+sel_start = flyer_sel.get("start", 1)
+sel_end = flyer_sel.get("end", sel_start)
+sel_step = flyer_sel.get("step", 1)
+
+selected_flyers = list_flyers_in_range(template_root, sel_start, sel_end, sel_step, flyer_prefix="F")
+
+if len(selected_flyers) == 0:
+    logging.error(
+        f"No flyers found in template '{TEMPLATE_FILE}' within selection "
+        f"(start={sel_start}, end={sel_end}, step={sel_step})."
+    )
+    sys.exit(1)
 
 # UNIT CONVERSION FOR SPEED
 def xml_speed_conversion(ui_mm_per_min):
@@ -209,44 +244,91 @@ def xml_speed_conversion(ui_mm_per_min):
 """
 Apply DataFrame row to CutSetting.
 """
-def apply_row_to_cut(root, df, row_idx, flyer_prefix="F"):
-    cut_name = f"{flyer_prefix}{row_idx+1}"  # row 0 → F1, row 1 → F2, ...
+"""
+Apply a given DataFrame row to a specific flyer CutSetting (e.g., F17).
+"""
+def apply_row_to_cut(root, df, flyer_number: int, excel_row_idx: int, flyer_prefix: str = "F") -> bool:
+    cut_name = f"{flyer_prefix}{int(flyer_number)}"
     cut = get_cut(root, cut_name)
     if cut is None:
         logging.debug(f"CutSetting '{cut_name}' not found.")
         return False
 
-    row = df.iloc[row_idx]
+    if excel_row_idx < 0 or excel_row_idx >= len(df):
+        logging.warning(
+            f"Excel row index {excel_row_idx} is out of bounds for dataframe with {len(df)} row(s). "
+            f"Skipping flyer '{cut_name}'."
+        )
+        return False
+
+    row = df.iloc[excel_row_idx]
     for col in df.columns:
         new_value = row[col]
 
-        # Ensure numPasses is written as an integer string
-        if col == "numPasses":
+        # Ensure some fields are written as integer strings
+        if col in ("numPasses", "frequency"):
             try:
                 new_value = int(float(new_value))
             except Exception:
-                pass  # fallback, leave as-is if not numeric
-        if col == "frequency":
-            try:
-                new_value = int(float(new_value))
-            except Exception:
-                pass  # fallback, leave as-is if not numeric
+                pass  # leave as-is if not numeric
 
         elem = cut.find(f"./{col}")
         if elem is not None:
-            # Update existing
             elem.set("Value", str(new_value))
         else:
-            # Create new element with Value attribute
             new_elem = ET.SubElement(cut, col)
             new_elem.set("Value", str(new_value))
             logging.debug(f"Created new attribute '{col}' in CutSetting '{cut_name}' with Value={new_value}")
+
     row_str = ", ".join(f"{k[:6]}={row[k]}" for k in df.columns)
-    logging.debug(f"Applied row [{row_idx}] to CutSetting '{cut_name}': {row_str}")
+    logging.debug(f"Applied excel row [{excel_row_idx}] to CutSetting '{cut_name}': {row_str}")
     return True
 
-for i in range(flyer_count):
-    apply_row_to_cut(template_root, df, i)
+
+def _excel_row_for_flyer_position(pos: int, style: str, x: int) -> int:
+    """
+    Map the position (0-based) of a flyer within the *selected_flyers* list to an excel row index.
+
+    Styles (from config):
+      - exact:     excel_row = pos
+      - repeat_x:  excel_row = pos // x      (repeat each excel row x times)
+      - modulus_x: excel_row = pos % x       (cycle through first x excel rows)
+    """
+    style_norm = (style or "exact").strip().lower()
+    if style_norm == "exact":
+        return pos
+
+    # sanitize x
+    try:
+        xi = int(x)
+    except Exception:
+        xi = 1
+    if xi <= 0:
+        xi = 1
+
+    if style_norm == "repeat_x":
+        return pos // xi
+    if style_norm == "modulus_x":
+        return pos % xi
+
+    logging.warning(f"Unknown flyer_assignment.style '{style}'. Falling back to 'exact'.")
+    return pos
+
+
+# Resolve flyer assignment mode from config
+assign_cfg = params.get("flyer_assignment", {}) or {}
+assign_style = assign_cfg.get("style", "exact")
+assign_x = assign_cfg.get("x", 1)
+
+logging.info(f"Applying excel rows to {len(selected_flyers)} selected flyer(s) using style='{assign_style}', x={assign_x}")
+
+applied = 0
+for pos, flyer_num in enumerate(selected_flyers):
+    excel_row_idx = _excel_row_for_flyer_position(pos, assign_style, assign_x)
+    if apply_row_to_cut(template_root, df, flyer_num, excel_row_idx, flyer_prefix="F"):
+        applied += 1
+
+logging.info(f"Applied settings to {applied}/{len(selected_flyers)} selected flyer(s).")
 
 
 """
