@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cfstack Config Builder</title>
+  <style>
+    :root {
+      --bg: #dadada;
+      --panel: #ffffff;
+      --panel-2: #ffffff;
+      --border: #767676;
+      --text: #000000;
+      --muted: #6f86a7;
+      --accent: #009de1;
+      --bad: #e60000;
+      --good: #00d34e;
+      --tip-bg: #9da8be;
+      --locked-bg: #eef3f8;
+      --locked-text: #4f647d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 12px 28px rgba(0,0,0,.18);
+    }
+    h1, h2, h3 { margin: 0 0 10px; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.05rem; color: var(--accent); margin-top: 18px; }
+    h3 { font-size: .95rem; color: var(--muted); margin-top: 14px; }
+    p.note { color: var(--muted); margin-top: 0; }
+    .section-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 18px;
+      margin-bottom: 10px;
+    }
+    .section-heading h2,
+    .section-heading h3 {
+      margin: 0;
+    }
+    .lock-btn {
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 12px;
+    }
+    .grid4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .field label {
+      font-size: .88rem;
+      color: var(--muted);
+    }
+    .label-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .help-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+    .help-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--accent);
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: help;
+      user-select: none;
+    }
+    .tooltip {
+      position: absolute;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: min(320px, 70vw);
+      background: var(--tip-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: .84rem;
+      line-height: 1.35;
+      box-shadow: 0 12px 28px rgba(0,0,0,.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease;
+      z-index: 30;
+    }
+    .help-wrap:hover .tooltip,
+    .help-wrap:focus-within .tooltip {
+      opacity: 1;
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+    }
+    input[readonly], input:disabled, select:disabled {
+      background: #eef3f8;
+      color: #4f647d;
+    }
+    textarea {
+      min-height: 720px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1.35;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 42px;
+      padding: 10px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .check input { width: auto; }
+    .check.locked, .field.locked input, .field.locked select {
+      background: var(--locked-bg);
+      color: var(--locked-text);
+    }
+    .check.locked {
+      border-color: var(--border);
+    }
+    .check.locked input {
+      accent-color: #94a3b8;
+      cursor: not-allowed;
+    }
+    .field.invalid input,
+    .field.invalid select,
+    .field.invalid textarea,
+    .check.invalid {
+      background: #ffffff;
+      border-color: #c0c0c0;
+    }
+    .override-active {
+      background: var(--locked-bg) !important;
+      color: var(--locked-text) !important;
+    }
+    .invalid-marker {
+      color: #c00000;
+      font-weight: 700;
+      margin-left: 4px;
+    }
+    .actions, .inline-actions, .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .top-actions {
+      --btn-bg: var(--accent);
+      --btn-text: #062033;
+    }
+    .inline-actions { margin-top: 0; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: var(--btn-bg, var(--accent));
+      color: var(--btn-text, #062033);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #cbd5e1;
+      color: #0f172a;
+    }
+    button.download-locked {
+      background: #d7b7b7;
+      color: #5a1b1b;
+      border: 1px solid #9d5c5c;
+    }
+    button.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.icon-btn {
+      min-width: 42px;
+      padding: 10px 12px;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .status {
+      margin-top: 12px;
+      min-height: 24px;
+      font-size: .92rem;
+    }
+    .status.bad { color: var(--bad); }
+    .status.good { color: var(--good); }
+    .status a { color: inherit; text-decoration: underline; font-weight: 700; }
+    .status ul { margin: 0; padding-left: 18px; }
+    .status li + li { margin-top: 4px; }
+    .status-warning { margin-top: 8px; }
+    .small { font-size: .84rem; color: var(--muted); }
+    .path-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .hidden {
+      display: none !important;
+    }
+    @media (max-width: 980px) {
+      .wrap { grid-template-columns: 1fr; }
+      .grid4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .path-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>cfstack.py config builder</h1>
+      <p class="note">This form builds a configuration file for the create flyer stack script.</p>
+      <div class="top-actions">
+        <button id="defaultsBtn">Reset Defaults</button>
+        <button id="uploadJsonBtn" title="Upload config JSON into form">Upload JSON</button>
+      </div>
+
+      <h2>Experiment</h2>
+      <div class="grid">
+        <div class="field">
+          <label class="label-row" for="ID">ID <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">4-digit alphanumerical stack identifier.</span></span></label>
+          <input id="ID" value="" />
+        </div>
+        <div class="field">
+          <label class="label-row" for="operator">Operator <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Operator initials or name.</span></span></label>
+          <input id="operator" value="" />
+        </div>
+      </div>
+      <div class="field">
+          <label class="label-row" for="igsn_config_select">IGSN Config Path <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Choose a detected IGSN config from the dropdown, or type a custom path in the field below.</span></span></label>
+          <div class="path-row">
+            <select id="igsn_config_select"></select>
+            <div class="inline-actions">
+              <button type="button" id="pickIgsnFolderBtn" class="ghost">Upload IGSN Folder</button>
+            </div>
+          </div>
+          <div class="small" id="igsnFolderStatus">Using built-in list until you select a folder.</div>
+          <div class="field" style="margin-top:10px; margin-bottom:0;">
+            <label class="label-row" for="igsn_config">Custom IGSN Path Override <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Optional free-typed path. When filled, this overrides the dropdown selection in the built config.</span></span></label>
+            <input id="igsn_config" autocomplete="off" placeholder="Leave blank to use selected dropdown item above" />
+          </div>
+          <input id="igsnFolderPicker" class="hidden" type="file" webkitdirectory directory multiple />
+        </div>
+
+      <h2>Template</h2>
+      <div class="field">
+          <label class="label-row" for="template_file_select">Template File <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Choose a detected template from the dropdown, or type a custom path in the field below.</span></span></label>
+          <div class="path-row">
+            <select id="template_file_select"></select>
+            <div class="inline-actions">
+              <button type="button" id="pickTemplateFolderBtn" class="ghost">Upload Template Folder</button>
+            </div>
+          </div>
+          <div class="small" id="templateFolderStatus">Using built-in list until you select a folder.</div>
+          <div class="field" style="margin-top:10px; margin-bottom:0;">
+            <label class="label-row" for="template_file">Custom Template Path Override <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Optional free-typed path. When filled, this overrides the dropdown selection in the built config.</span></span></label>
+            <input id="template_file" autocomplete="off" placeholder="Leave blank to use selected dropdown item above" />
+          </div>
+          <input id="templateFolderPicker" class="hidden" type="file" webkitdirectory directory multiple />
+        </div>
+      <div class="grid">
+        <div class="field">
+          <label class="label-row" for="template_id_placeholder">
+            ID Placeholder
+            <span class="help-wrap">
+              <span class="help-icon" tabindex="0">?</span>
+              <span class="tooltip">Exact text in the LightBurn template that is replaced with the stack ID.</span>
+            </span>
+            <button type="button" id="flyidLockBtn" class="lock-btn" title="Unlock FLYID field">🔒</button>
+          </label>
+          <input id="template_id_placeholder" value="FLYID" readonly />
+        </div>
+      </div>
+
+      <h2>Laser Params</h2>
+      <div class="grid">
+        <div class="field">
+          <label class="label-row" for="excel_path">Excel Path <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Spreadsheet containing flyer laser parameters. Path relative to 'cfstack.py' script.</span></span></label>
+          <div class="path-row">
+            <input id="excel_path" value="" />
+            <div class="inline-actions">
+              <button type="button" id="pickExcelBtn" class="ghost">Pick Excel File</button>
+            </div>
+          </div>
+          <div class="small" id="excelPickerStatus">No Excel file chosen.</div>
+          <input id="excelFilePicker" class="hidden" type="file" accept=".xlsx,.xls,.xlsm,.csv,.tsv" />
+        </div>
+        <div class="field"><label class="label-row" for="excel_row_start">Excel Row Start <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Row starting offset for reading Excel data.</span></span></label><input id="excel_row_start" type="number" value="1" /></div>
+      </div>
+      <div class="grid">
+        <label class="check"><input id="excel_as_input" type="checkbox" checked />Use Excel as input</label>
+        <label class="check"><input id="excel_exhaust" type="checkbox" />Exhaust Excel</label>
+      </div>
+
+      <div class="section-heading">
+        <h2>Output</h2>
+        <button type="button" id="outputLockBtn" class="lock-btn" title="Unlock output section">🔒</button>
+      </div>
+      <div id="outputSection">
+        <div class="grid">
+          <div class="field"><label class="label-row" for="output_dir">Output Directory <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Directory where generated LightBurn files should be written.</span></span></label><input id="output_dir" value="output" /></div>
+          <div class="field"><label class="label-row" for="output_base">Output Base Name <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Base stem for output filenames before optional suffixes such as ID or timestamp.</span></span></label><input id="output_base" value="stack" /></div>
+        </div>
+        <div class="grid">
+          <label class="check"><input id="output_dir_append_igsn" type="checkbox" checked />Append IGSN to path</label>
+          <label class="check"><input id="output_append_id" type="checkbox" checked />Append ID to filename</label>
+          <label class="check"><input id="output_append_template" type="checkbox" />Append template to filename</label>
+          <label class="check"><input id="output_append_timestamp" type="checkbox" checked />Append timestamp to filename</label>
+          <label class="check"><input id="output_overwrite" type="checkbox" />Overwrite existing file</label>
+        </div>
+      </div>
+
+      <div class="section-heading">
+        <h2>Flyer Selection Style</h2>
+        <button type="button" id="flyerLockBtn" class="lock-btn" title="Unlock flyer section">🔒</button>
+      </div>
+      <div id="flyerSection">
+        <div class="grid">
+          <div class="field"><label class="label-row" for="flyer_start">Selection Start <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">First flyer index in the template to target.</span></span></label><input id="flyer_start" type="number" value="1" /></div>
+          <div class="field"><label class="label-row" for="flyer_end">Selection End <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Last flyer index in the template to target. "n" for last found.</span></span></label><input id="flyer_end" value="n" /></div>
+          <div class="field"><label class="label-row" for="flyer_step">Selection Step <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Interval between flyer numbers. Use 1 for contiguous selection.</span></span></label><input id="flyer_step" type="number" value="1" /></div>
+          <div class="field"><label class="label-row" for="assignment_style">Assignment Style <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">How Excel rows map across selected flyers: exact (i:i), repeat_x (i:i/x), or modulus_x (i:i%x).</span></span></label>
+            <input id="assignment_style" list="assignment_style_list" autocomplete="off" />
+            <datalist id="assignment_style_list">
+              <option value="exact"></option>
+              <option value="repeat_x"></option>
+              <option value="modulus_x"></option>
+            </datalist>
+          </div>
+          <div class="field"><label class="label-row" for="assignment_x">Assignment X <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Parameter used by repeat_x or modulus_x assignment logic.</span></span></label><input id="assignment_x" type="number" value="1" /></div>
+        </div>
+      </div>
+
+      <h2>Metadata</h2>
+      <h3>Glass thickness (mm)</h3>
+      <div class="grid4">
+        <div class="field"><label class="label-row" for="glass_tl_mm">Top-left <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Glass thickness at the top-left corner in millimeters.</span></span></label><input id="glass_tl_mm" type="number" step="any" value="6.25" /></div>
+        <div class="field"><label class="label-row" for="glass_tr_mm">Top-right <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Glass thickness at the top-right corner in millimeters.</span></span></label><input id="glass_tr_mm" type="number" step="any" value="6.25" /></div>
+        <div class="field"><label class="label-row" for="glass_bl_mm">Bottom-left <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Glass thickness at the bottom-left corner in millimeters.</span></span></label><input id="glass_bl_mm" type="number" step="any" value="6.25" /></div>
+        <div class="field"><label class="label-row" for="glass_br_mm">Bottom-right <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Glass thickness at the bottom-right corner in millimeters.</span></span></label><input id="glass_br_mm" type="number" step="any" value="6.25" /></div>
+      </div>
+
+      <div class="section-heading">
+        <h3>Foil thickness (um)</h3>
+        <button type="button" id="foilLockBtn" class="lock-btn" title="Unlock foil thickness section">🔒</button>
+      </div>
+      <div id="foilSection" class="grid4" style="margin-top:10px;">
+        <div class="field"><label class="label-row" for="foil_tl_um">Top-left <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Foil thickness at the top-left corner in micrometers.</span></span></label><input id="foil_tl_um" type="number" step="any" value="100" /></div>
+        <div class="field"><label class="label-row" for="foil_tr_um">Top-right <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Foil thickness at the top-right corner in micrometers.</span></span></label><input id="foil_tr_um" type="number" step="any" value="100" /></div>
+        <div class="field"><label class="label-row" for="foil_bl_um">Bottom-left <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Foil thickness at the bottom-left corner in micrometers.</span></span></label><input id="foil_bl_um" type="number" step="any" value="100" /></div>
+        <div class="field"><label class="label-row" for="foil_br_um">Bottom-right <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Foil thickness at the bottom-right corner in micrometers.</span></span></label><input id="foil_br_um" type="number" step="any" value="100" /></div>
+      </div>
+
+      <div class="actions">
+        <button id="buildBtn">Build JSON</button>
+        <button id="downloadBtn" class="secondary">Download JSON</button>
+      </div>
+      <input id="jsonFilePicker" class="hidden" type="file" accept=".json,application/json" />
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="panel" id="jsonPanel">
+      <h2>Generated Config JSON</h2>
+      <textarea id="jsonOutput"></textarea>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let buildAttempted = false;
+
+    const defaults = {
+      ID: "",
+      operator: "",
+      igsn_config: "",
+      template_file: "",
+      template_id_placeholder: "FLYID",
+      template_id_locked: true,
+      output_locked: true,
+      flyer_locked: true,
+      foil_locked: true,
+      output_dir: "output",
+      output_base: "stack",
+      output_dir_append_igsn: true,
+      output_append_id: true,
+      output_append_template: false,
+      output_append_timestamp: true,
+      output_overwrite: false,
+      flyer_start: 1,
+      flyer_end: "n",
+      flyer_step: 1,
+      assignment_style: "exact",
+      assignment_x: 1,
+      excel_path: "",
+      excel_row_start: 1,
+      excel_as_input: false,
+      excel_exhaust: false,
+      glass_tl_mm: 6.25,
+      glass_tr_mm: 6.25,
+      glass_bl_mm: 6.25,
+      glass_br_mm: 6.25,
+      foil_tl_um: 100,
+      foil_tr_um: 100,
+      foil_bl_um: 100,
+      foil_br_um: 100,
+    };
+
+    const state = {
+      igsnFiles: [
+        { path: "", file: null, thickness: 100 },
+      ],
+      templateFiles: [
+        { path: "", file: null },
+      ],
+      igsnFileByPath: new Map(),
+      templateFileByPath: new Map(),
+      templateIdLocked: true,
+      lastBuildValid: false,
+      sectionLocks: {
+        output: true,
+        flyer: true,
+        foil: true,
+      },
+      jsonPaneVisible: true,
+      pendingDownloadBroken: false,
+      igsnFolderLabel: "igsn-config",
+      templateFolderLabel: "templates",
+    };
+
+    function setStatus(msg, cls = "") {
+      const el = $("status");
+      el.textContent = msg;
+      el.className = `status ${cls}`.trim();
+    }
+
+    function setStatusHtml(html, cls = "") {
+      const el = $("status");
+      el.innerHTML = html;
+      el.className = `status ${cls}`.trim();
+    }
+
+    function setForm(data) {
+      for (const [k, v] of Object.entries(data)) {
+        const el = $(k);
+        if (!el) continue;
+        if (el.type === "checkbox") el.checked = !!v;
+        else el.value = v;
+      }
+      setTemplateIdLock(data.template_id_locked ?? true);
+      setSectionLock("output", data.output_locked ?? true);
+      setSectionLock("flyer", data.flyer_locked ?? true);
+      setSectionLock("foil", data.foil_locked ?? true);
+    }
+
+    function getNumber(id) {
+      return Number($(id).value);
+    }
+
+    function getText(id) {
+      return $(id).value.trim();
+    }
+
+    function getCheckbox(id) {
+      return $(id).checked;
+    }
+
+    function normalizeSlashes(s) {
+      return String(s || "").replace(/\\/g, "/");
+    }
+
+    function getSelectedFolderLabel(fileList, fallbackPrefix) {
+      const first = Array.from(fileList || [])[0];
+      const rel = normalizeSlashes(first?.webkitRelativePath || "");
+      const root = rel.split("/")[0];
+      return root || fallbackPrefix;
+    }
+
+    function buildFolderDisplayPath(file, rootFolderLabel, fallbackPrefix) {
+      const rel = normalizeSlashes(file.webkitRelativePath || file.name);
+      if (!rel) return fallbackPrefix;
+      const parts = rel.split("/").filter(Boolean);
+      if (parts.length <= 1) return `${fallbackPrefix}/${parts[0] || file.name}`;
+      const visibleParts = [rootFolderLabel || parts[0], ...parts.slice(1)];
+      return visibleParts.join("/");
+    }
+
+    function extractThicknessFromJson(json) {
+      const candidates = [
+        json?.material?.thickness_um,
+        json?.material_thickness_um,
+        json?.thickness?.foil?.um,
+        json?.foil?.thickness_um,
+        json?.foil_thickness_um,
+        json?.thickness_um,
+      ];
+      for (const value of candidates) {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) return n;
+      }
+      return null;
+    }
+
+    function populateChoices(selectId, entries, mapName, selectedPath = null) {
+      const select = $(selectId);
+      const existingValue = select.value;
+      select.innerHTML = "";
+      state[mapName] = new Map();
+
+      for (const entry of entries) {
+        const opt = document.createElement("option");
+        opt.value = entry.path;
+        opt.textContent = entry.path || "";
+        select.appendChild(opt);
+        state[mapName].set(entry.path, entry);
+      }
+
+      const fallback = entries[0]?.path || "";
+      const pathToUse = selectedPath && state[mapName].has(selectedPath) ? selectedPath : (existingValue || fallback);
+      select.value = pathToUse;
+      if (select.id === "igsn_config_select") updatePathOverrideUI("igsn_config", "igsn_config_select");
+      if (select.id === "template_file_select") updatePathOverrideUI("template_file", "template_file_select");
+    }
+
+    function populateIgsnDropdown(selectedPath = null) {
+      populateChoices("igsn_config_select", state.igsnFiles, "igsnFileByPath", selectedPath);
+      syncFoilThicknessFromSelectedIgsn();
+    }
+
+    function populateTemplateDropdown(selectedPath = null) {
+      populateChoices("template_file_select", state.templateFiles, "templateFileByPath", selectedPath);
+    }
+
+    function buildTemplateEntries(fileList) {
+      const files = Array.from(fileList || []);
+      const templateFiles = files.filter(file => {
+        const rel = normalizeSlashes(file.webkitRelativePath || file.name).toLowerCase();
+        return rel.endsWith(".lbrn2");
+      });
+
+      const folderLabel = getSelectedFolderLabel(fileList, "templates");
+      state.templateFolderLabel = folderLabel;
+      const entries = templateFiles.map(file => ({
+        path: buildFolderDisplayPath(file, folderLabel, "templates"),
+        file,
+      }));
+      entries.sort((a, b) => a.path.localeCompare(b.path));
+      return entries;
+    }
+
+    function handleTemplateFolderSelection(fileList) {
+      const entries = buildTemplateEntries(fileList);
+      if (!entries.length) {
+        $("templateFolderStatus").textContent = "No .lbrn2 files found in the selected folder.";
+        setStatus("Could not find any template files.", "bad");
+        return;
+      }
+      state.templateFiles = entries;
+      populateTemplateDropdown(entries[0].path);
+      $("template_file").value = "";
+      $("templateFolderStatus").textContent = `Loaded ${entries.length} template file(s) from ${state.templateFolderLabel}.`;
+      buildJson();
+      setStatus("Loaded template dropdown from local folder.", "good");
+    }
+
+    function syncExcelAsInputFromPath() {
+      const hasPath = !!getText("excel_path");
+      $("excel_as_input").checked = hasPath;
+    }
+
+    function updateDownloadButtonState() {
+      const btn = $("downloadBtn");
+      btn.classList.remove("ghost", "secondary", "download-locked");
+      if (state.lastBuildValid) btn.classList.add("secondary");
+      else btn.classList.add("download-locked");
+      btn.title = state.lastBuildValid ? "Download validated JSON" : "Build JSON first to validate before download";
+    }
+
+    function downloadConfigBlob(cfg, filenamePrefix = null) {
+      const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      const prefix = filenamePrefix || (cfg.ID || "config");
+      a.download = `${prefix}config.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function renderBuildProblems(problems) {
+      const items = problems.map(p => `<li>${p.message}</li>`).join("");
+      setStatusHtml(`<ul>${items}</ul><div class="status-warning"><a href="#" id="downloadBrokenLink">Download Anyways</a></div>`, "bad");
+      const link = $("downloadBrokenLink");
+      if (link) {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          const cfg = buildConfigObject();
+          const ok = window.confirm("This config is currently invalid and may fail downstream... Do you still wish to download the broken form?");
+          if (!ok) return;
+          downloadConfigBlob(cfg, cfg.ID || "broken-");
+        });
+      }
+    }
+
+    async function readIgsnThickness(file) {
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        return extractThicknessFromJson(json);
+      } catch {
+        return null;
+      }
+    }
+
+    async function buildIgsnEntries(fileList) {
+      const files = Array.from(fileList || []);
+      const jsonFiles = files.filter(file => {
+        const rel = normalizeSlashes(file.webkitRelativePath || file.name).toLowerCase();
+        return rel.endsWith(".json");
+      });
+
+      state.igsnFolderLabel = getSelectedFolderLabel(fileList, "igsn-config");
+      const entries = [];
+      for (const file of jsonFiles) {
+        const path = buildFolderDisplayPath(file, state.igsnFolderLabel, "igsn-config");
+        const thickness = await readIgsnThickness(file);
+        entries.push({ path, file, thickness });
+      }
+      entries.sort((a, b) => a.path.localeCompare(b.path));
+      return entries;
+    }
+
+    async function handleIgsnFolderSelection(fileList) {
+      const entries = await buildIgsnEntries(fileList);
+      if (!entries.length) {
+        $("igsnFolderStatus").textContent = "No JSON files found in the selected folder.";
+        setStatus("Could not find any IGSN JSON files.", "bad");
+        return;
+      }
+      state.igsnFiles = entries;
+      populateIgsnDropdown(entries[0].path);
+      $("igsn_config").value = "";
+      $("igsnFolderStatus").textContent = `Loaded ${entries.length} IGSN JSON file(s) from ${state.igsnFolderLabel}.`;
+      syncFoilThicknessFromSelectedIgsn();
+      buildJson();
+      setStatus("Loaded IGSN config dropdown from local folder.", "good");
+    }
+
+    function updatePathOverrideUI(textInputId, selectId) {
+      const input = $(textInputId);
+      const select = $(selectId);
+      const hasSelection = !!(select?.value || "").trim();
+      input.classList.toggle("override-active", hasSelection);
+    }
+
+    function syncPathOverrideBehavior(textInputId, selectId) {
+      const input = $(textInputId);
+      const select = $(selectId);
+      if (!input || !select) return;
+
+      select.addEventListener("change", () => {
+        if (getText(selectId)) {
+          input.value = "";
+        }
+        updatePathOverrideUI(textInputId, selectId);
+      });
+
+      input.addEventListener("input", () => {
+        if (getText(textInputId) && getText(selectId)) {
+          select.value = "";
+        }
+        updatePathOverrideUI(textInputId, selectId);
+      });
+
+      updatePathOverrideUI(textInputId, selectId);
+    }
+
+    function getResolvedIgsnConfigPath() {
+      return getText("igsn_config") || $("igsn_config_select").value || "";
+    }
+
+    function getResolvedTemplateFilePath() {
+      return getText("template_file") || $("template_file_select").value || "";
+    }
+
+    function syncFoilThicknessFromSelectedIgsn() {
+      const entry = state.igsnFileByPath.get($("igsn_config_select").value);
+      const thickness = Number(entry?.thickness);
+      if (Number.isFinite(thickness) && thickness > 0) {
+        ["foil_tl_um", "foil_tr_um", "foil_bl_um", "foil_br_um"].forEach(id => $(id).value = thickness);
+        return true;
+      }
+      return false;
+    }
+
+    function setTemplateIdLock(isLocked) {
+      state.templateIdLocked = !!isLocked;
+      const input = $("template_id_placeholder");
+      const btn = $("flyidLockBtn");
+      input.readOnly = state.templateIdLocked;
+      btn.textContent = state.templateIdLocked ? "🔒" : "🔓";
+      btn.title = state.templateIdLocked ? "Unlock FLYID field" : "Lock FLYID field";
+    }
+
+    function setSectionLock(sectionName, isLocked) {
+      state.sectionLocks[sectionName] = !!isLocked;
+      const root = $(`${sectionName}Section`);
+      const btn = $(`${sectionName}LockBtn`);
+      if (!root || !btn) return;
+      root.querySelectorAll("input, select, textarea, button").forEach(el => {
+        el.disabled = !!isLocked;
+      });
+      root.querySelectorAll(".check").forEach(el => el.classList.toggle("locked", !!isLocked));
+      root.querySelectorAll(".field").forEach(el => el.classList.toggle("locked", !!isLocked));
+      btn.textContent = isLocked ? "🔒" : "🔓";
+      btn.title = isLocked ? `Unlock ${sectionName} section` : `Lock ${sectionName} section`;
+      btn.disabled = false;
+    }
+
+    function getFlyerEndValue() {
+      const raw = getText("flyer_end");
+      if (!raw) return "";
+      if (raw.toLowerCase() === "n") return "n";
+      return Number(raw);
+    }
+
+    function clearValidationUI() {
+      document.querySelectorAll('.field.invalid, .check.invalid').forEach(el => el.classList.remove('invalid'));
+      document.querySelectorAll('.invalid-marker').forEach(el => el.remove());
+    }
+
+    function markInvalid(id) {
+      const el = $(id);
+      if (!el) return;
+      const field = el.closest('.field');
+      const check = el.closest('.check');
+      const root = field || check;
+      if (!root) return;
+      root.classList.add('invalid');
+      if (root.querySelector('.invalid-marker')) return;
+      const marker = document.createElement('span');
+      marker.className = 'invalid-marker';
+      marker.textContent = '*';
+      if (field) {
+        const label = field.querySelector('label');
+        if (label) label.appendChild(marker);
+      } else {
+        root.appendChild(marker);
+      }
+    }
+
+    function applyValidationUI(problems) {
+      clearValidationUI();
+      for (const problem of problems) {
+        for (const id of problem.ids || []) markInvalid(id);
+      }
+    }
+
+    function validateForm() {
+      const problems = [];
+      const addProblem = (message, ids = []) => problems.push({ message, ids });
+      const flyerEndRaw = getText("flyer_end");
+      const flyerEndIsN = flyerEndRaw.toLowerCase() === "n";
+      const flyerEndNumber = Number(flyerEndRaw);
+
+      if (!/^\d{4}$/.test(getText("ID"))) addProblem("ID should be exactly 4 digits.", ["ID"]);
+      if (!getText("operator")) addProblem("Operator is required.", ["operator"]);
+      if (!getResolvedIgsnConfigPath()) addProblem("IGSN config path is required.", ["igsn_config", "igsn_config_select"]);
+      if (!getResolvedTemplateFilePath()) addProblem("Template file path is required.", ["template_file", "template_file_select"]);
+      if (!getText("template_id_placeholder")) addProblem("Template ID placeholder is required.", ["template_id_placeholder"]);
+      if (!getText("output_dir")) addProblem("Output dir is required.", ["output_dir"]);
+      if (!getText("output_base")) addProblem("Output base is required.", ["output_base"]);
+      if (!(getNumber("flyer_start") > 0)) addProblem("Flyer selection start must be > 0.", ["flyer_start"]);
+      if (!flyerEndRaw || (!flyerEndIsN && !(Number.isInteger(flyerEndNumber) && flyerEndNumber > 0))) addProblem("Flyer selection end must be a positive integer or n.", ["flyer_end"]);
+      if (getNumber("flyer_step") === 0) addProblem("Flyer selection step must not be 0.", ["flyer_step"]);
+      if (getNumber("assignment_x") <= 0) addProblem("Assignment x must be > 0.", ["assignment_x"]);
+      if (getNumber("excel_row_start") < 1) addProblem("Excel row start must be >= 1.", ["excel_row_start"]);
+      ["glass_tl_mm","glass_tr_mm","glass_bl_mm","glass_br_mm","foil_tl_um","foil_tr_um","foil_bl_um","foil_br_um"].forEach(id => {
+        if (!(getNumber(id) > 0)) addProblem(`${id} must be > 0.`, [id]);
+      });
+      return problems;
+    }
+
+    function buildConfigObject() {
+      return {
+        ID: getText("ID"),
+        operator: getText("operator"),
+        igsn_config: getResolvedIgsnConfigPath(),
+        template: {
+          file: getResolvedTemplateFilePath(),
+          id_placeholder: getText("template_id_placeholder"),
+        },
+        output: {
+          dir: getText("output_dir"),
+          dir_append_igsn: getCheckbox("output_dir_append_igsn"),
+          base: getText("output_base"),
+          append_id: getCheckbox("output_append_id"),
+          append_template: getCheckbox("output_append_template"),
+          append_timestamp: getCheckbox("output_append_timestamp"),
+          overwrite: getCheckbox("output_overwrite"),
+        },
+        flyer: {
+          selection: {
+            start: getNumber("flyer_start"),
+            end: getFlyerEndValue(),
+            step: getNumber("flyer_step"),
+          },
+          assignment: {
+            style: getText("assignment_style"),
+            x: getNumber("assignment_x"),
+          },
+        },
+        laser_params: {
+          excel_path: getText("excel_path"),
+          excel_as_input: getCheckbox("excel_as_input"),
+          excel_row_start: getNumber("excel_row_start"),
+          excel_exhaust: getCheckbox("excel_exhaust"),
+        },
+        thickness: {
+          glass: {
+            tl_mm: getNumber("glass_tl_mm"),
+            tr_mm: getNumber("glass_tr_mm"),
+            bl_mm: getNumber("glass_bl_mm"),
+            br_mm: getNumber("glass_br_mm"),
+          },
+          foil: {
+            tl_um: getNumber("foil_tl_um"),
+            tr_um: getNumber("foil_tr_um"),
+            bl_um: getNumber("foil_bl_um"),
+            br_um: getNumber("foil_br_um"),
+          },
+        },
+      };
+    }
+
+    function buildJson() {
+      syncExcelAsInputFromPath();
+      buildAttempted = true;
+
+      const problems = validateForm();
+      state.lastBuildValid = problems.length === 0;
+      applyValidationUI(problems);
+      if (problems.length) renderBuildProblems(problems);
+      else setStatus("Config JSON is valid.", "good");
+      const cfg = buildConfigObject();
+      $("jsonOutput").value = JSON.stringify(cfg, null, 2);
+      updateDownloadButtonState();
+      return cfg;
+    }
+
+    function downloadJson() {
+      const cfg = buildJson();
+      if (!state.lastBuildValid) return;
+      downloadConfigBlob(cfg);
+    }
+
+    function applyConfigToForm(cfg) {
+      $("ID").value = cfg.ID ?? defaults.ID;
+      $("operator").value = cfg.operator ?? defaults.operator;
+
+      const igsnPath = cfg.igsn_config ?? defaults.igsn_config;
+      if (igsnPath && !state.igsnFileByPath.has(igsnPath)) {
+        state.igsnFiles = [...state.igsnFiles, { path: igsnPath, file: null, thickness: null }];
+        populateIgsnDropdown(igsnPath);
+      }
+      if (state.igsnFileByPath.has(igsnPath)) {
+        $("igsn_config_select").value = igsnPath;
+        $("igsn_config").value = "";
+      } else {
+        $("igsn_config_select").value = "";
+        $("igsn_config").value = igsnPath;
+      }
+      updatePathOverrideUI("igsn_config", "igsn_config_select");
+
+      const templatePath = cfg.template?.file ?? defaults.template_file;
+      if (templatePath && !state.templateFileByPath.has(templatePath)) {
+        state.templateFiles = [...state.templateFiles, { path: templatePath, file: null }];
+        populateTemplateDropdown(templatePath);
+      }
+      if (state.templateFileByPath.has(templatePath)) {
+        $("template_file_select").value = templatePath;
+        $("template_file").value = "";
+      } else {
+        $("template_file_select").value = "";
+        $("template_file").value = templatePath;
+      }
+      updatePathOverrideUI("template_file", "template_file_select");
+      $("template_id_placeholder").value = cfg.template?.id_placeholder ?? defaults.template_id_placeholder;
+
+      $("output_dir").value = cfg.output?.dir ?? defaults.output_dir;
+      $("output_base").value = cfg.output?.base ?? defaults.output_base;
+      $("output_dir_append_igsn").checked = cfg.output?.dir_append_igsn ?? defaults.output_dir_append_igsn;
+      $("output_append_id").checked = cfg.output?.append_id ?? defaults.output_append_id;
+      $("output_append_template").checked = cfg.output?.append_template ?? defaults.output_append_template;
+      $("output_append_timestamp").checked = cfg.output?.append_timestamp ?? defaults.output_append_timestamp;
+      $("output_overwrite").checked = cfg.output?.overwrite ?? defaults.output_overwrite;
+
+      $("flyer_start").value = cfg.flyer?.selection?.start ?? defaults.flyer_start;
+      $("flyer_end").value = String(cfg.flyer?.selection?.end ?? defaults.flyer_end);
+      $("flyer_step").value = cfg.flyer?.selection?.step ?? defaults.flyer_step;
+      $("assignment_style").value = cfg.flyer?.assignment?.style ?? defaults.assignment_style;
+      $("assignment_x").value = cfg.flyer?.assignment?.x ?? defaults.assignment_x;
+
+      $("excel_path").value = cfg.laser_params?.excel_path ?? defaults.excel_path;
+      $("excel_row_start").value = cfg.laser_params?.excel_row_start ?? defaults.excel_row_start;
+      $("excel_as_input").checked = cfg.laser_params?.excel_as_input ?? defaults.excel_as_input;
+      $("excel_exhaust").checked = cfg.laser_params?.excel_exhaust ?? defaults.excel_exhaust;
+
+      $("glass_tl_mm").value = cfg.thickness?.glass?.tl_mm ?? defaults.glass_tl_mm;
+      $("glass_tr_mm").value = cfg.thickness?.glass?.tr_mm ?? defaults.glass_tr_mm;
+      $("glass_bl_mm").value = cfg.thickness?.glass?.bl_mm ?? defaults.glass_bl_mm;
+      $("glass_br_mm").value = cfg.thickness?.glass?.br_mm ?? defaults.glass_br_mm;
+
+      const foil = cfg.thickness?.foil || {};
+      $("foil_tl_um").value = foil.tl_um ?? defaults.foil_tl_um;
+      $("foil_tr_um").value = foil.tr_um ?? defaults.foil_tr_um;
+      $("foil_bl_um").value = foil.bl_um ?? defaults.foil_bl_um;
+      $("foil_br_um").value = foil.br_um ?? defaults.foil_br_um;
+
+      setTemplateIdLock(cfg.template_id_locked ?? defaults.template_id_locked);
+      setSectionLock("output", cfg.output_locked ?? defaults.output_locked);
+      setSectionLock("flyer", cfg.flyer_locked ?? defaults.flyer_locked);
+      setSectionLock("foil", cfg.foil_locked ?? defaults.foil_locked);
+      buildJson();
+    }
+
+    async function loadJsonFileIntoForm(file) {
+      if (!file) return;
+      try {
+        const raw = await file.text();
+        const cfg = JSON.parse(raw);
+        applyConfigToForm(cfg);
+        $("jsonOutput").value = JSON.stringify(buildConfigObject(), null, 2);
+        setStatus("Uploaded JSON and prefilled the form.", "good");
+      } catch (err) {
+        setStatus(`Could not read uploaded JSON: ${err.message}`, "bad");
+      }
+    }
+
+    function handleExcelFilePicked(file) {
+      if (!file) return;
+      $("excel_path").value = file.name;
+      $("excelPickerStatus").textContent = `Selected file: ${file.name}`;
+      syncExcelAsInputFromPath();
+      buildJson();
+      setStatus("Selected Excel file from OS picker.", "good");
+    }
+
+    document.querySelectorAll("input, select").forEach(el => {
+      if (["jsonFilePicker", "igsnFolderPicker", "templateFolderPicker", "excelFilePicker"].includes(el.id)) return;
+      el.addEventListener("input", buildJson);
+      el.addEventListener("change", buildJson);
+    });
+
+    $("igsn_config_select").addEventListener("change", () => {
+      const found = syncFoilThicknessFromSelectedIgsn();
+      buildJson();
+      setStatus(found ? "Updated foil thickness from selected IGSN config." : "Selected IGSN config does not expose a readable thickness value.", found ? "good" : "bad");
+    });
+
+    $("flyidLockBtn").addEventListener("click", () => {
+      setTemplateIdLock(!state.templateIdLocked);
+      buildJson();
+    });
+
+    $("outputLockBtn").addEventListener("click", () => {
+      setSectionLock("output", !state.sectionLocks.output);
+      buildJson();
+    });
+
+    $("flyerLockBtn").addEventListener("click", () => {
+      setSectionLock("flyer", !state.sectionLocks.flyer);
+      buildJson();
+    });
+
+    $("foilLockBtn").addEventListener("click", () => {
+      setSectionLock("foil", !state.sectionLocks.foil);
+      buildJson();
+    });
+
+    $("pickIgsnFolderBtn").addEventListener("click", () => $("igsnFolderPicker").click());
+    $("igsnFolderPicker").addEventListener("change", (e) => handleIgsnFolderSelection(e.target.files));
+
+    $("pickTemplateFolderBtn").addEventListener("click", () => $("templateFolderPicker").click());
+    $("templateFolderPicker").addEventListener("change", (e) => handleTemplateFolderSelection(e.target.files));
+
+    $("pickExcelBtn").addEventListener("click", () => $("excelFilePicker").click());
+    $("excelFilePicker").addEventListener("change", (e) => handleExcelFilePicked(e.target.files?.[0]));
+    $("excel_path").addEventListener("input", () => { syncExcelAsInputFromPath(); buildJson(); });
+
+    $("uploadJsonBtn").addEventListener("click", () => $("jsonFilePicker").click());
+    $("jsonFilePicker").addEventListener("change", (e) => loadJsonFileIntoForm(e.target.files?.[0]));
+
+    $("buildBtn").addEventListener("click", buildJson);
+    $("downloadBtn").addEventListener("click", downloadJson);
+    $("defaultsBtn").addEventListener("click", () => {
+      setForm(defaults);
+      state.igsnFiles = [{ path: defaults.igsn_config, file: null, thickness: defaults.foil_tl_um }];
+      state.templateFiles = [{ path: defaults.template_file, file: null }];
+      populateIgsnDropdown(defaults.igsn_config);
+      populateTemplateDropdown(defaults.template_file);
+      $("igsn_config").value = defaults.igsn_config && !state.igsnFileByPath.has(defaults.igsn_config) ? defaults.igsn_config : "";
+      $("template_file").value = defaults.template_file && !state.templateFileByPath.has(defaults.template_file) ? defaults.template_file : "";
+      updatePathOverrideUI("igsn_config", "igsn_config_select");
+      updatePathOverrideUI("template_file", "template_file_select");
+      state.igsnFolderLabel = "igsn-config";
+      state.templateFolderLabel = "templates";
+      $("igsnFolderStatus").textContent = "Using built-in list until you select a folder.";
+      $("templateFolderStatus").textContent = "Using built-in list until you select a folder.";
+      $("excelPickerStatus").textContent = "No Excel file chosen.";
+      syncFoilThicknessFromSelectedIgsn();
+      buildJson();
+      setStatus("Reset to defaults.", "good");
+    });
+    syncPathOverrideBehavior("igsn_config", "igsn_config_select");
+    syncPathOverrideBehavior("template_file", "template_file_select");
+    setForm(defaults);
+    populateIgsnDropdown(defaults.igsn_config);
+    populateTemplateDropdown(defaults.template_file);
+    syncFoilThicknessFromSelectedIgsn();
+    syncExcelAsInputFromPath();
+    buildJson();
+  </script>
+</body>
+</html>

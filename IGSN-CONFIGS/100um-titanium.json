@@ -1,6 +1,6 @@
 {
-    "version": "JHAMAB00009_1.0",
-    "timestamp": "2025-11-13T19:00:56Z",
+    "version": "JHAMAB00009_1.1",
+    "timestamp": "2026-3-5T12:00:00Z",
 
     "material": {
         "name": "Titanium Foil",
@@ -11,13 +11,12 @@
         "thickness_um": 100,
         "purity_percent": 99.99
     },
-    "cut": {
-        "min_power": 0,
-        "max_power": 100,
-        "kerf_offset": 0,
-        "z_offset_per_pass": 0,
-        "speed_mm_s": 0,
-        "passes": 1,
-        "air_assist": false
-  }
+    "laser_defaults": {
+        "maxPower": 60,
+        "QPulseWidth": 200,
+        "speed": 100,
+        "frequency": 100,
+        "numPasses": 1,
+        "minPower": 0
+    }
 }
