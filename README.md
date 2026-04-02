@@ -3,21 +3,19 @@ A host of projects designed to optimize the machining of flyers for HELIX with A
 
 ## Execution
 To execute create flyer stack, `cfstack.py`, provide the required positional arguments:
-`python cfstack.py {excel-sheet} {config-json}`
+`python cfstack.py {config-json}`
 
-
-The excel-sheet expects columns maxPower, QPulseWidth, speed,	frequency, and numPasses (with these labels in row1). The script should automatically parse a properly formatted template lightburn file specificated in the config.
-
+The excel-sheet expects columns `maxPower`, `QPulseWidth`, `speed`,	`frequency`, and `numPasses` (with these labels in row1). The script should automatically parse a properly formatted template lightburn file specificated in the config.
 
 ## Contents
 `cfstack.py`: script accepts a excel sheet of laser parameters and JSON and compiles a `.lbrn2` lightburn project file according to the provided specifications.
 
-`config.json`: formatted JSON file containing miscellaneous parameters. 
+`config_app.html`: html form that helps create a JSON of run parameters for the script. 
 
-`data.xslx`: excel sheet with rows that contain tested laser parameters.
+`LB-TEMPLATES`: directory of formatted lightburn files for the script.
 
-`5x5stack.lbrn2`: formatted lightburn project template for use in script.
+`IGSN-CONFIGS`: directory of foil/material metadata for data linking. 
 
-`6x2stack.lbrn2`: formatted lightburn project template for use in script.
+`EXCEL`: directory of formatted excel sheets for the script
 
-`7x7stack.lbrn2`: row-wise formatted lightburn project template for use in script.
+`CONFIGS`: directory of formatted config json for the script. 
