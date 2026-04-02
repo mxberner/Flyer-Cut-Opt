@@ -1,8 +1,6 @@
 """
 cfstack_new.py
 Create one or more LightBurn .lbrn2 outputs for a stack of custom flyers.
-
-New config shape only. No backward compatibility.
 """
 
 from __future__ import annotations
@@ -23,6 +21,9 @@ import pandas as pd
 # COMMAND LINE ARGS
 # ----------------------------
 def parse_args() -> argparse.Namespace:
+    """
+    parse_args: Parse command line arguments.
+    """
     parser = argparse.ArgumentParser(description="LightBurn Flyer Stack Creator")
     parser.add_argument("json", type=str, help="Path to config JSON.")
     parser.add_argument("--quiet", "-q", action="store_true", help="Mute console logging.")
@@ -65,7 +66,46 @@ logging.info("-------------------Starting cfstack script-------------------")
 # ----------------------------
 # HELPERS
 # ----------------------------
+def resolve_input_path(path_str: str, search_dirs: list[str], label: str) -> Path:
+    """
+    resolve_input_path: Resolve an input file path.
+      1. Check the exact path provided.
+      2. If not found, search the provided CWD subdirectories using the input filename.
+      3. Log whenever a fallback path is used.
+    """
+    raw = str(path_str or "").strip()
+    if not raw:
+        raise FileNotFoundError(f"{label} path was empty.")
+
+    exact = Path(raw).expanduser()
+    if exact.exists():
+        return exact
+
+    filename = Path(raw).name
+    checked: list[str] = [str(exact)]
+
+    for rel_dir in search_dirs:
+        candidate = Path.cwd() / rel_dir / filename
+        checked.append(str(candidate))
+        if candidate.exists():
+            logging.warning(
+                "%s not found at exact path '%s'. Using fallback '%s'.",
+                label,
+                raw,
+                candidate,
+            )
+            return candidate
+
+    raise FileNotFoundError(
+        f"{label} not found. Exact path checked: '{raw}'. "
+        f"Fallback locations checked: {checked[1:]}"
+    )
+
+
 def load_json(path_str: str) -> dict:
+    """
+    load_json: Load a JSON file and return its contents as a dictionary.
+    """
     path = Path(path_str)
     if not path.exists():
         raise FileNotFoundError(f"JSON file not found: {path}")
@@ -73,11 +113,17 @@ def load_json(path_str: str) -> dict:
 
 
 def require(cond: bool, msg: str) -> None:
+    """
+    require: Assert that a condition is true, otherwise raise a ValueError with the provided message.
+    """
     if not cond:
         raise ValueError(msg)
 
 
 def _safe_token(s: str) -> str:
+    """
+    _safe_token: Sanitize a string to be safe for use in filenames.
+    """
     s = (s or "").strip()
     if not s:
         return ""
@@ -85,6 +131,9 @@ def _safe_token(s: str) -> str:
 
 
 def _int(value, default: int) -> int:
+    """
+    _int: Convert a value to an integer, returning a default if conversion fails.
+    """
     try:
         return int(value)
     except Exception:
@@ -92,6 +141,9 @@ def _int(value, default: int) -> int:
 
 
 def _float(value, default: float) -> float:
+    """
+    _float: Convert a value to a float, returning a default if conversion fails.
+    """
     try:
         return float(value)
     except Exception:
@@ -99,10 +151,16 @@ def _float(value, default: float) -> float:
 
 
 def _is_n_token(value) -> bool:
+    """
+    _is_n_token: Check if a value is the token 'n'.
+    """
     return str(value).strip().lower() == "n"
 
 
 def validate_top_level_config(cfg: dict) -> None:
+    """
+    validate_top_level_config: Validate the top-level structure of the config dictionary.
+    """
     require(isinstance(cfg, dict), "Config root must be a JSON object.")
 
     for key in ("ID", "operator", "igsn_config", "template", "output", "flyer", "laser_params", "thickness"):
@@ -162,6 +220,9 @@ def validate_top_level_config(cfg: dict) -> None:
 
 
 def normalize_thickness(cfg: dict, igsn_cfg: dict) -> dict:
+    """
+    normalize_thickness: Resolve missing thickness values using defaults. 
+    """
     foil_default = igsn_cfg.get("material", {}).get("thickness_um", None)
     foil_default = _float(foil_default, 0.0) if foil_default is not None else None
 
@@ -194,6 +255,9 @@ def normalize_thickness(cfg: dict, igsn_cfg: dict) -> dict:
 # OUTPUT PATHS
 # ----------------------------
 def resolve_output_path(cfg: dict, igsn_cfg: dict, template_file: str, extra_name_parts: list[str] | None = None) -> Path:
+    """
+    resolve_output_path: Builds output path based on config specifications.
+    """
     output_cfg = cfg["output"]
 
     out_dir = Path(output_cfg["dir"]).expanduser().resolve()
@@ -239,6 +303,9 @@ def resolve_output_path(cfg: dict, igsn_cfg: dict, template_file: str, extra_nam
 # XML HELPERS
 # ----------------------------
 def get_cut(root: ET.Element, name: str):
+    """
+    get_cut: Find a CutSetting element by name, case-insensitive. Returns None if not found.
+    """
     search_norm = name.strip().lower()
     for cut in root.findall(".//CutSetting"):
         name_elem = cut.find("./name")
@@ -251,6 +318,10 @@ def get_cut(root: ET.Element, name: str):
 
 
 def list_flyers_in_range(root: ET.Element, start: int = 1, end: int | str | None = None, step: int = 1, flyer_prefix: str = "F") -> list[int]:
+    """
+    list_flyers_in_range: List flyer numbers that exist in the template within the specified range and step.
+      - If end is 'n', it will find all sequential flyers starting from 'start'
+    """
     if end is None:
         end = start
 
@@ -308,6 +379,10 @@ def list_flyers_in_range(root: ET.Element, start: int = 1, end: int | str | None
 
 
 def rename_text_exact(root: ET.Element, old_text: str, new_text: str, case_insensitive: bool = True) -> int:
+    """
+    rename_text_exact: Rename all Shape elements of Type='Text' with Str matching old_text to new_text.
+      - Used to update template ID placeholder.
+    """
     changed = 0
     for shape in root.findall(".//Shape[@Type='Text']"):
         s = shape.get("Str", "")
@@ -321,6 +396,9 @@ def rename_text_exact(root: ET.Element, old_text: str, new_text: str, case_insen
 # LASER PARAMS APPLICATION
 # ----------------------------
 def _excel_row_for_flyer_position(pos: int, style: str, x: int) -> int:
+    """
+    _excel_row_for_flyer_position: Determine which excel row index to use for a given flyer position based on the assignment style.
+    """
     style_norm = (style or "exact").strip().lower()
     if style_norm == "exact":
         return pos
@@ -339,6 +417,9 @@ def _excel_row_for_flyer_position(pos: int, style: str, x: int) -> int:
 
 
 def apply_row_to_cut(root: ET.Element, df: pd.DataFrame, flyer_number: int, excel_row_idx: int, flyer_prefix: str = "F") -> bool:
+    """
+    apply_row_to_cut: Apply laser parameters from a specific excel row to the CutSetting of a given flyer number in the XML.
+    """
     cut_name = f"{flyer_prefix}{int(flyer_number)}"
     cut = get_cut(root, cut_name)
     if cut is None:
@@ -373,6 +454,9 @@ def apply_row_to_cut(root: ET.Element, df: pd.DataFrame, flyer_number: int, exce
 
 
 def apply_cut_defaults_to_flyer(root: ET.Element, flyer_number: int, cut_defaults: dict, flyer_prefix: str = "F") -> bool:
+    """
+    apply_cut_defaults_to_flyer: Apply default laser parameters (igsn-config) to the CutSetting of a given flyer number in the XML.
+    """
     cut_name = f"{flyer_prefix}{int(flyer_number)}"
     cut = get_cut(root, cut_name)
     if cut is None:
@@ -391,6 +475,9 @@ def apply_cut_defaults_to_flyer(root: ET.Element, flyer_number: int, cut_default
 
 
 def igsn_cut_to_lightburn_fields(igsn_cfg: dict) -> dict:
+    """
+    igsn_cut_to_lightburn_fields: Map IGSN cut parameters to LightBurn CutSetting fields for use as defaults when excel_as_input is false.
+    """
     cut = igsn_cfg.get("cut", {}) or {}
     out: dict = {}
 
@@ -414,12 +501,18 @@ def igsn_cut_to_lightburn_fields(igsn_cfg: dict) -> dict:
 # EXCEL HELPERS
 # ----------------------------
 def load_excel_df(excel_path: str) -> pd.DataFrame:
+    """
+    load_excel_df: Load the excel file into pandas DF
+    """
     df = pd.read_excel(excel_path, engine="openpyxl", usecols="A:E")
     df.columns = ["maxPower", "QPulseWidth", "speed", "frequency", "numPasses"]
     return df
 
 
 def compute_rows_per_template(num_flyers: int, assign_style: str, assign_x: int) -> int:
+    """
+    compute_rows_per_template: Compute excel rows needed per template.
+    """
     style = (assign_style or "exact").strip().lower()
     x = _int(assign_x, 1)
     if x <= 0:
@@ -435,6 +528,9 @@ def compute_rows_per_template(num_flyers: int, assign_style: str, assign_x: int)
 
 
 def build_batch_row_indices(df_len: int, start_idx: int, chunk: int, exhaust: bool) -> list[list[int]]:
+    """
+    build_batch_row_indices: Build list of excel row index batches to apply to templates, based on chunk size and exhaust option.
+    """
     if start_idx >= df_len:
         return []
 
@@ -463,6 +559,9 @@ def build_batch_row_indices(df_len: int, start_idx: int, chunk: int, exhaust: bo
 
 
 def describe_batch_rows(rows: list[int], start_idx: int) -> str:
+    """
+    describe_batch_rows: Create a readable description of a batch of excel rows, relative to the starting index.
+    """
     if not rows:
         return "rows-none"
 
@@ -492,9 +591,13 @@ def describe_batch_rows(rows: list[int], start_idx: int) -> str:
 # ----------------------------
 # MAIN
 # ----------------------------
-cfg = load_json(args.json)
+config_path = resolve_input_path(args.json, ["configs", "run-params"], "Config JSON")
+cfg = load_json(str(config_path))
 validate_top_level_config(cfg)
-igsn_cfg = load_json(cfg["igsn_config"])
+
+
+igsn_path = resolve_input_path(cfg["igsn_config"], ["IGSN-CONFIGS"], "IGSN config")
+igsn_cfg = load_json(str(igsn_path))
 resolved_thickness = normalize_thickness(cfg, igsn_cfg)
 
 logging.info(f"Loaded config '{args.json}'.")
@@ -505,14 +608,14 @@ template_cfg = cfg["template"]
 flyer_cfg = cfg["flyer"]
 laser_cfg = cfg["laser_params"]
 
-TEMPLATE_FILE = template_cfg["file"]
+TEMPLATE_FILE = resolve_input_path(template_cfg["file"], ["LB-TEMPLATES", "TEMPLATES"], "Template file")
 TMP_ID_PLACEHOLDER = template_cfg["id_placeholder"]
 
 if not Path(TEMPLATE_FILE).exists():
     raise FileNotFoundError(f"Template file not found: {TEMPLATE_FILE}")
 
 excel_as_input = bool(laser_cfg.get("excel_as_input", True))
-excel_path = str(laser_cfg.get("excel_path", "") or "")
+excel_path_raw = str(laser_cfg.get("excel_path", "") or "")
 excel_row_start_1based = _int(laser_cfg.get("excel_row_start", 1), 1)
 excel_start_idx = max(0, excel_row_start_1based - 1)
 excel_exhaust = bool(laser_cfg.get("excel_exhaust", False))
@@ -539,7 +642,10 @@ assign_x = _int(assignment_cfg.get("x", 1), 1)
 outputs_written: list[Path] = []
 
 if excel_as_input:
-    require(bool(excel_path.strip()), "laser_params.excel_path is required when excel_as_input is true.")
+    require(bool(excel_path_raw.strip()), "laser_params.excel_path is required when excel_as_input is true.")
+    excel_path = resolve_input_path(excel_path_raw, ["EXCEL"], "Excel file")
+
+    
     require(Path(excel_path).exists(), f"Excel file not found: {excel_path}")
 
     df = load_excel_df(excel_path)

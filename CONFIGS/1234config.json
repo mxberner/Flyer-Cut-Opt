@@ -1,0 +1,49 @@
+{
+  "ID": "1234",
+  "operator": "mxb",
+  "igsn_config": "IGSN-CONFIGS/100um-aluminum.json",
+  "template": {
+    "file": "5x5stack.lbrn2",
+    "id_placeholder": "FLYID"
+  },
+  "output": {
+    "dir": "output",
+    "dir_append_igsn": true,
+    "base": "stack",
+    "append_id": true,
+    "append_template": false,
+    "append_timestamp": true,
+    "overwrite": false
+  },
+  "flyer": {
+    "selection": {
+      "start": 1,
+      "end": "n",
+      "step": 1
+    },
+    "assignment": {
+      "style": "exact",
+      "x": 1
+    }
+  },
+  "laser_params": {
+    "excel_path": "data.xlsx",
+    "excel_as_input": true,
+    "excel_row_start": 1,
+    "excel_exhaust": false
+  },
+  "thickness": {
+    "glass": {
+      "tl_mm": 6.25,
+      "tr_mm": 6.25,
+      "bl_mm": 6.25,
+      "br_mm": 6.25
+    },
+    "foil": {
+      "tl_um": 100,
+      "tr_um": 100,
+      "bl_um": 100,
+      "br_um": 100
+    }
+  }
+}
