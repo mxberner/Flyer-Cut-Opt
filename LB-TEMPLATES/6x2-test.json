@@ -1,0 +1,21 @@
+{
+  "template": "6x2-test.lbrn2",
+  "version": 1,
+  "creator": "mxb",
+  "placeholder_id": "none",
+  "physical_flyers": [
+    { "position": "R1C1", "layer": "F1", "xpos": "33", "ypos": "44" },
+    { "position": "R2C1", "layer": "F2", "xpos": "33", "ypos": "39.5" },
+    { "position": "R3C1", "layer": "F3", "xpos": "33", "ypos": "35" },
+    { "position": "R4C1", "layer": "F4", "xpos": "33", "ypos": "30.5" },
+    { "position": "R5C1", "layer": "F5", "xpos": "33", "ypos": "26" },
+    { "position": "R6C1", "layer": "F6", "xpos": "33", "ypos": "21.5" },
+
+    { "position": "R1C2", "layer": "F7", "xpos": "39", "ypos": "44" },
+    { "position": "R2C2", "layer": "F8", "xpos": "39", "ypos": "39.5" },
+    { "position": "R3C2", "layer": "F9", "xpos": "39", "ypos": "35" },
+    { "position": "R4C2", "layer": "F10", "xpos": "39", "ypos": "30.5" },
+    { "position": "R5C2", "layer": "F11", "xpos": "39", "ypos": "26" },
+    { "position": "R6C2", "layer": "F12", "xpos": "39", "ypos": "21.5" }
+  ]
+}

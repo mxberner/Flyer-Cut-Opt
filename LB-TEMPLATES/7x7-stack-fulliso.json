@@ -1,0 +1,63 @@
+{
+  "template": "7x7-stack-fulliso.lbrn2",
+  "version": 1,
+  "creator": "mxb",
+  "placeholder_id": "FLYID",
+  "physical_flyers": [
+    { "position": "R1C1", "layer": "F1", "xpos": "17", "ypos": "53" },
+    { "position": "R1C2", "layer": "F1", "xpos": "23", "ypos": "53" },
+    { "position": "R1C3", "layer": "F1", "xpos": "29", "ypos": "53" },
+    { "position": "R1C4", "layer": "F1", "xpos": "35", "ypos": "53" },
+    { "position": "R1C5", "layer": "F1", "xpos": "41", "ypos": "53" },
+    { "position": "R1C6", "layer": "F1", "xpos": "47", "ypos": "53" },
+    { "position": "R1C7", "layer": "F1", "xpos": "53", "ypos": "53" },
+
+    { "position": "R2C1", "layer": "F2", "xpos": "17", "ypos": "47" },
+    { "position": "R2C2", "layer": "F2", "xpos": "23", "ypos": "47" },
+    { "position": "R2C3", "layer": "F2", "xpos": "29", "ypos": "47" },
+    { "position": "R2C4", "layer": "F2", "xpos": "35", "ypos": "47" },
+    { "position": "R2C5", "layer": "F2", "xpos": "41", "ypos": "47" },
+    { "position": "R2C6", "layer": "F2", "xpos": "47", "ypos": "47" },
+    { "position": "R2C7", "layer": "F2", "xpos": "53", "ypos": "47" },
+
+    { "position": "R3C1", "layer": "F3", "xpos": "17", "ypos": "41" },
+    { "position": "R3C2", "layer": "F3", "xpos": "23", "ypos": "41" },
+    { "position": "R3C3", "layer": "F3", "xpos": "29", "ypos": "41" },
+    { "position": "R3C4", "layer": "F3", "xpos": "35", "ypos": "41" },
+    { "position": "R3C5", "layer": "F3", "xpos": "41", "ypos": "41" },
+    { "position": "R3C6", "layer": "F3", "xpos": "47", "ypos": "41" },
+    { "position": "R3C7", "layer": "F3", "xpos": "53", "ypos": "41" },
+
+    { "position": "R4C1", "layer": "F4", "xpos": "17", "ypos": "35" },
+    { "position": "R4C2", "layer": "F4", "xpos": "23", "ypos": "35" },
+    { "position": "R4C3", "layer": "F4", "xpos": "29", "ypos": "35" },
+    { "position": "R4C4", "layer": "F4", "xpos": "35", "ypos": "35" },
+    { "position": "R4C5", "layer": "F4", "xpos": "41", "ypos": "35" },
+    { "position": "R4C6", "layer": "F4", "xpos": "47", "ypos": "35" },
+    { "position": "R4C7", "layer": "F4", "xpos": "53", "ypos": "35" },
+
+    { "position": "R5C1", "layer": "F5", "xpos": "17", "ypos": "29" },
+    { "position": "R5C2", "layer": "F5", "xpos": "23", "ypos": "29" },
+    { "position": "R5C3", "layer": "F5", "xpos": "29", "ypos": "29" },
+    { "position": "R5C4", "layer": "F5", "xpos": "35", "ypos": "29" },
+    { "position": "R5C5", "layer": "F5", "xpos": "41", "ypos": "29" },
+    { "position": "R5C6", "layer": "F5", "xpos": "47", "ypos": "29" },
+    { "position": "R5C7", "layer": "F5", "xpos": "53", "ypos": "29" },
+
+    { "position": "R6C1", "layer": "F6", "xpos": "17", "ypos": "23" },
+    { "position": "R6C2", "layer": "F6", "xpos": "23", "ypos": "23" },
+    { "position": "R6C3", "layer": "F6", "xpos": "29", "ypos": "23" },
+    { "position": "R6C4", "layer": "F6", "xpos": "35", "ypos": "23" },
+    { "position": "R6C5", "layer": "F6", "xpos": "41", "ypos": "23" },
+    { "position": "R6C6", "layer": "F6", "xpos": "47", "ypos": "23" },
+    { "position": "R6C7", "layer": "F6", "xpos": "53", "ypos": "23" },
+
+    { "position": "R7C1", "layer": "F7", "xpos": "17", "ypos": "17" },
+    { "position": "R7C2", "layer": "F7", "xpos": "23", "ypos": "17" },
+    { "position": "R7C3", "layer": "F7", "xpos": "29", "ypos": "17" },
+    { "position": "R7C4", "layer": "F7", "xpos": "35", "ypos": "17" },
+    { "position": "R7C5", "layer": "F7", "xpos": "41", "ypos": "17" },
+    { "position": "R7C6", "layer": "F7", "xpos": "47", "ypos": "17" },
+    { "position": "R7C7", "layer": "F7", "xpos": "53", "ypos": "17" }
+  ]
+}

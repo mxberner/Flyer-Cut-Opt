@@ -1,0 +1,37 @@
+{
+  "template": "5x5-stack.lbrn2",
+  "version": 1,
+  "creator": "mxb",
+  "placeholder_id": "FLYID",
+  "physical_flyers": [
+    { "position": "R1C1", "layer": "F1",  "xpos": "71.5", "ypos": "103.5" },
+    { "position": "R1C2", "layer": "F2",  "xpos": "79.5", "ypos": "103.5" },
+    { "position": "R1C3", "layer": "F3",  "xpos": "87.5", "ypos": "103.5" },
+    { "position": "R1C4", "layer": "F4",  "xpos": "95.5", "ypos": "103.5" },
+    { "position": "R1C5", "layer": "F5",  "xpos": "103.5", "ypos": "103.5" },
+
+    { "position": "R2C1", "layer": "F6",  "xpos": "71.5", "ypos": "95.5" },
+    { "position": "R2C2", "layer": "F7",  "xpos": "79.5", "ypos": "95.5" },
+    { "position": "R2C3", "layer": "F8",  "xpos": "87.5", "ypos": "95.5" },
+    { "position": "R2C4", "layer": "F9",  "xpos": "95.5", "ypos": "95.5" },
+    { "position": "R2C5", "layer": "F10", "xpos": "103.5", "ypos": "95.5" },
+
+    { "position": "R3C1", "layer": "F11", "xpos": "71.5", "ypos": "87.5" },
+    { "position": "R3C2", "layer": "F12", "xpos": "79.5", "ypos": "87.5" },
+    { "position": "R3C3", "layer": "F13", "xpos": "87.5", "ypos": "87.5" },
+    { "position": "R3C4", "layer": "F14", "xpos": "95.5", "ypos": "87.5" },
+    { "position": "R3C5", "layer": "F15", "xpos": "103.5", "ypos": "87.5" },
+
+    { "position": "R4C1", "layer": "F16", "xpos": "71.5", "ypos": "79.5" },
+    { "position": "R4C2", "layer": "F17", "xpos": "79.5", "ypos": "79.5" },
+    { "position": "R4C3", "layer": "F18", "xpos": "87.5", "ypos": "79.5" },
+    { "position": "R4C4", "layer": "F19", "xpos": "95.5", "ypos": "79.5" },
+    { "position": "R4C5", "layer": "F20", "xpos": "103.5", "ypos": "79.5" },
+
+    { "position": "R5C1", "layer": "F21", "xpos": "71.5", "ypos": "71.5" },
+    { "position": "R5C2", "layer": "F22", "xpos": "79.5", "ypos": "71.5" },
+    { "position": "R5C3", "layer": "F23", "xpos": "87.5", "ypos": "71.5" },
+    { "position": "R5C4", "layer": "F24", "xpos": "95.5", "ypos": "71.5" },
+    { "position": "R5C5", "layer": "F25", "xpos": "103.5", "ypos": "71.5" }
+  ]
+}
