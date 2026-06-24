@@ -16,6 +16,18 @@ import xml.etree.ElementTree as ET
 
 import pandas as pd
 
+from stack_id_utils import is_valid_stack_id
+
+
+"""
+Default search directories for inputs. 
+"""
+CONFIG_SEARCH_DIRS = ["inputs/configs", "CONFIGS", "configs", "run-params"]
+IGSN_SEARCH_DIRS = ["inputs/igsn", "IGSN-CONFIGS"]
+TEMPLATE_SEARCH_DIRS = ["inputs/templates", "LB-TEMPLATES", "TEMPLATES"]
+EXCEL_SEARCH_DIRS = ["inputs/excel", "EXCEL"]
+DEFAULT_OUTPUT_ROOT = "output"
+
 
 # ----------------------------
 # COMMAND LINE ARGS
@@ -163,28 +175,24 @@ def validate_top_level_config(cfg: dict) -> None:
     """
     require(isinstance(cfg, dict), "Config root must be a JSON object.")
 
-    for key in ("ID", "operator", "igsn_config", "template", "output", "flyer", "laser_params", "thickness"):
+    for key in ("ID", "operator", "igsn_config", "template", "flyer", "laser_params", "thickness"):
         require(key in cfg, f"Missing required config field: {key}")
 
     require(str(cfg["ID"]).strip(), "ID is required.")
     require(str(cfg["operator"]).strip(), "operator is required.")
 
     template = cfg["template"]
-    output = cfg["output"]
     flyer = cfg["flyer"]
     laser_params = cfg["laser_params"]
     thickness = cfg["thickness"]
 
     require(isinstance(template, dict), "template must be an object.")
-    require(isinstance(output, dict), "output must be an object.")
     require(isinstance(flyer, dict), "flyer must be an object.")
     require(isinstance(laser_params, dict), "laser_params must be an object.")
     require(isinstance(thickness, dict), "thickness must be an object.")
 
     require(str(template.get("file", "")).strip(), "template.file is required.")
     require(str(template.get("id_placeholder", "")).strip(), "template.id_placeholder is required.")
-    require(str(output.get("dir", "")).strip(), "output.dir is required.")
-    require(str(output.get("base", "")).strip(), "output.base is required.")
 
     flyer_selection = flyer.get("selection", {})
     flyer_assignment = flyer.get("assignment", {})
@@ -252,51 +260,180 @@ def normalize_thickness(cfg: dict, igsn_cfg: dict) -> dict:
 
 
 # ----------------------------
-# OUTPUT PATHS
+# OUTPUT / SIDECAR HELPERS
 # ----------------------------
-def resolve_output_path(cfg: dict, igsn_cfg: dict, template_file: str, extra_name_parts: list[str] | None = None) -> Path:
-    """
-    resolve_output_path: Builds output path based on config specifications.
-    """
-    output_cfg = cfg["output"]
-
-    out_dir = Path(output_cfg["dir"]).expanduser().resolve()
-    if bool(output_cfg.get("dir_append_igsn", False)):
-        igsn = _safe_token(igsn_cfg.get("material", {}).get("igsn", ""))
-        if igsn:
-            out_dir = out_dir / igsn
+def resolve_output_dir(cfg: dict, igsn_cfg: dict) -> Path:
+    """Return the standard output directory for a run."""
+    igsn = _safe_token(str(igsn_cfg.get("material", {}).get("igsn", "")).strip() or "unknown-igsn")
+    stack_id = _safe_token(str(cfg.get("ID", "")).strip() or "unknown-stack")
+    out_dir = Path(DEFAULT_OUTPUT_ROOT).expanduser().resolve() / igsn / stack_id
     out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir
 
-    overwrite = bool(output_cfg.get("overwrite", False))
-    base_file = output_cfg.get("base", "STACK") or "STACK"
-    base_path = Path(base_file)
 
-    stem = _safe_token(base_path.stem)
-    suffix = base_path.suffix or (Path(template_file).suffix or ".lbrn2")
-
-    parts: list[str] = [stem]
-
-    if bool(output_cfg.get("append_id", False)):
-        parts.append(_safe_token(str(cfg.get("ID", "0000"))))
-    if bool(output_cfg.get("append_template", False)):
-        parts.append(_safe_token(Path(template_file).stem))
+def build_output_stem(extra_name_parts: list[str] | None = None) -> str:
+    """Build a deterministic output stem under the standard output directory."""
+    parts = ["stack"]
     if extra_name_parts:
-        parts.extend(_safe_token(p) for p in extra_name_parts if p)
-    if bool(output_cfg.get("append_timestamp", False)):
-        parts.append(datetime.now().strftime("%Y%m%d-%H%M%S"))
+        parts.extend(_safe_token(part) for part in extra_name_parts if part)
+    return "-".join(part for part in parts if part)
 
-    filename = "-".join(p for p in parts if p) + suffix
-    out_path = out_dir / filename
+
+def resolve_output_path(
+    cfg: dict,
+    igsn_cfg: dict,
+    template_file: str,
+    extra_name_parts: list[str] | None = None,
+) -> Path:
+    """Build output path under the standard output directory."""
+    legacy_output_cfg = cfg.get("output", {}) or {}
+    out_dir = resolve_output_dir(cfg, igsn_cfg)
+    stem = build_output_stem(extra_name_parts=extra_name_parts)
+    suffix = Path(template_file).suffix or ".lbrn2"
+    out_path = out_dir / f"{stem}{suffix}"
+    overwrite = bool(cfg.get("output_overwrite", legacy_output_cfg.get("overwrite", False)))
 
     if overwrite or not out_path.exists():
         return out_path
 
     i = 1
     while True:
-        candidate = out_dir / f"{out_path.stem}-{i}{out_path.suffix}"
+        candidate = out_dir / f"{stem}-{i}{suffix}"
         if not candidate.exists():
             return candidate
         i += 1
+
+
+def validate_template_sidecar(sidecar: dict, template_filename: str) -> None:
+    """Validate the expected template sidecar format used for CSV summaries."""
+    require(isinstance(sidecar, dict), "Template sidecar must be a JSON object.")
+    for key in ("template", "version", "creator", "placeholder_id", "physical_flyers"):
+        require(key in sidecar, f"Template sidecar missing required field: {key}")
+
+    require(
+        str(sidecar.get("template", "")).strip() == template_filename,
+        f"Template sidecar template='{sidecar.get('template')}' does not match template filename '{template_filename}'.",
+    )
+    require(
+        isinstance(sidecar.get("physical_flyers"), list),
+        "Template sidecar physical_flyers must be a list.",
+    )
+
+    for i, flyer in enumerate(sidecar["physical_flyers"], start=1):
+        require(isinstance(flyer, dict), f"physical_flyers[{i}] must be an object.")
+        for key in ("position", "layer", "xpos", "ypos"):
+            require(key in flyer, f"physical_flyers[{i}] missing required field: {key}")
+        require(str(flyer.get("position", "")).strip(), f"physical_flyers[{i}].position is required.")
+        require(str(flyer.get("layer", "")).strip(), f"physical_flyers[{i}].layer is required.")
+
+
+def load_template_sidecar(template_file: str) -> tuple[Path, dict]:
+    """Load the template JSON sidecar that maps physical positions to layers."""
+    template_path = Path(template_file)
+    sidecar_path = template_path.with_suffix(".json")
+    if not sidecar_path.exists():
+        raise FileNotFoundError(f"Template sidecar JSON not found: {sidecar_path}")
+    sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+    validate_template_sidecar(sidecar, template_path.name)
+    return sidecar_path, sidecar
+
+
+def _clean_assignment_value(key: str, value):
+    """Normalize CSV summary values to the same shape written into the template."""
+    if key in ("numPasses", "frequency"):
+        try:
+            return int(float(value))
+        except Exception:
+            return value
+    return value
+
+
+def build_layer_assignment_map_from_excel(
+    df: pd.DataFrame,
+    selected_flyers: list[int],
+    batch_rows: list[int],
+    assign_style: str,
+    assign_x: int,
+) -> dict[str, dict]:
+    """Build the assigned laser settings for each selected flyer layer."""
+    layer_map: dict[str, dict] = {}
+    for pos, flyer_num in enumerate(selected_flyers):
+        base_row_idx = _excel_row_for_flyer_position(pos, assign_style, assign_x)
+        excel_row_idx = batch_rows[base_row_idx]
+        row = df.iloc[excel_row_idx].to_dict()
+        cleaned = {col: _clean_assignment_value(col, val) for col, val in row.items()}
+        cleaned["excel_row_1based"] = excel_row_idx + 1
+        layer_map[f"F{int(flyer_num)}"] = cleaned
+    return layer_map
+
+
+def build_layer_assignment_map_from_defaults(
+    selected_flyers: list[int],
+    cut_defaults: dict,
+) -> dict[str, dict]:
+    """Build layer assignments when the IGSN config supplies defaults directly."""
+    layer_map: dict[str, dict] = {}
+    for flyer_num in selected_flyers:
+        layer_map[f"F{int(flyer_num)}"] = dict(cut_defaults or {})
+    return layer_map
+
+
+def build_physical_flyer_csv_rows(
+    cfg: dict,
+    igsn_cfg: dict,
+    template_sidecar: dict,
+    output_lbrn_path: Path,
+    layer_assignment_map: dict[str, dict],
+    run_timestamp: str,
+) -> list[dict]:
+    """Build one CSV summary row per physical flyer in the template sidecar."""
+    rows: list[dict] = []
+    foil_igsn = str(igsn_cfg.get("material", {}).get("igsn", "")).strip()
+    stack_id = str(cfg.get("ID", "")).strip()
+    operator = str(cfg.get("operator", "")).strip()
+
+    for flyer in template_sidecar.get("physical_flyers", []):
+        layer = str(flyer.get("layer", "")).strip()
+        position = str(flyer.get("position", "")).strip()
+        assigned = layer_assignment_map.get(layer, {})
+
+        rows.append(
+            {
+                "foil_igsn": foil_igsn,
+                "stack_id": stack_id,
+                "flyer_position": position,
+                "laser_maxpower": assigned.get("maxPower", ""),
+                "laser_qpulsewidth": assigned.get("QPulseWidth", ""),
+                "laser_speed": assigned.get("speed", ""),
+                "laser_frequency": assigned.get("frequency", ""),
+                "laser_numpasses": assigned.get("numPasses", ""),
+                "operator": operator,
+                "timestamp": run_timestamp,
+                "output_file": output_lbrn_path.name,
+                "source_row": assigned.get("excel_row_1based", ""),
+            }
+        )
+
+    return rows
+
+
+def write_physical_flyer_csv(csv_path: Path, rows: list[dict]) -> None:
+    """Write the CSV summary associated with a generated LightBurn file."""
+    columns = [
+        "foil_igsn",
+        "stack_id",
+        "flyer_position",
+        "laser_maxpower",
+        "laser_qpulsewidth",
+        "laser_speed",
+        "laser_frequency",
+        "laser_numpasses",
+        "operator",
+        "timestamp",
+        "output_file",
+        "source_row",
+    ]
+    pd.DataFrame(rows, columns=columns).to_csv(csv_path, index=False)
 
 
 # ----------------------------
@@ -498,13 +635,21 @@ def igsn_cut_to_lightburn_fields(igsn_cfg: dict) -> dict:
 
 
 # ----------------------------
-# EXCEL HELPERS
+# LASER PARAMETER INPUT HELPERS
 # ----------------------------
-def load_excel_df(excel_path: str) -> pd.DataFrame:
+def load_laser_params_df(excel_path: str) -> pd.DataFrame:
     """
-    load_excel_df: Load the excel file into pandas DF
+    load_laser_params_df: Load spreadsheet or delimited laser parameters into a dataframe.
     """
-    df = pd.read_excel(excel_path, engine="openpyxl", usecols="A:E")
+    path = Path(excel_path)
+    suffix = path.suffix.lower()
+
+    if suffix in {".csv", ".tsv", ".txt"}:
+        sep = "\t" if suffix == ".tsv" else ","
+        df = pd.read_csv(path, sep=sep, usecols=[0, 1, 2, 3, 4])
+    else:
+        df = pd.read_excel(path, engine="openpyxl", usecols="A:E")
+
     df.columns = ["maxPower", "QPulseWidth", "speed", "frequency", "numPasses"]
     return df
 
@@ -591,12 +736,12 @@ def describe_batch_rows(rows: list[int], start_idx: int) -> str:
 # ----------------------------
 # MAIN
 # ----------------------------
-config_path = resolve_input_path(args.json, ["configs", "run-params"], "Config JSON")
+config_path = resolve_input_path(args.json, CONFIG_SEARCH_DIRS, "Config JSON")
 cfg = load_json(str(config_path))
 validate_top_level_config(cfg)
 
 
-igsn_path = resolve_input_path(cfg["igsn_config"], ["IGSN-CONFIGS"], "IGSN config")
+igsn_path = resolve_input_path(cfg["igsn_config"], IGSN_SEARCH_DIRS, "IGSN config")
 igsn_cfg = load_json(str(igsn_path))
 resolved_thickness = normalize_thickness(cfg, igsn_cfg)
 
@@ -608,17 +753,25 @@ template_cfg = cfg["template"]
 flyer_cfg = cfg["flyer"]
 laser_cfg = cfg["laser_params"]
 
-TEMPLATE_FILE = resolve_input_path(template_cfg["file"], ["LB-TEMPLATES", "TEMPLATES"], "Template file")
+TEMPLATE_FILE = resolve_input_path(template_cfg["file"], TEMPLATE_SEARCH_DIRS, "Template file")
 TMP_ID_PLACEHOLDER = template_cfg["id_placeholder"]
 
 if not Path(TEMPLATE_FILE).exists():
     raise FileNotFoundError(f"Template file not found: {TEMPLATE_FILE}")
+
+template_sidecar_path, template_sidecar = load_template_sidecar(str(TEMPLATE_FILE))
+require(
+    str(template_sidecar.get("placeholder_id", "")).strip() == str(TMP_ID_PLACEHOLDER).strip(),
+    "Template sidecar placeholder_id does not match template.id_placeholder from config.",
+)
+logging.info(f"Loaded template sidecar '{template_sidecar_path}'.")
 
 excel_as_input = bool(laser_cfg.get("excel_as_input", True))
 excel_path_raw = str(laser_cfg.get("excel_path", "") or "")
 excel_row_start_1based = _int(laser_cfg.get("excel_row_start", 1), 1)
 excel_start_idx = max(0, excel_row_start_1based - 1)
 excel_exhaust = bool(laser_cfg.get("excel_exhaust", False))
+run_timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 template_tree_base = ET.parse(TEMPLATE_FILE)
 template_root_base = template_tree_base.getroot()
@@ -643,12 +796,12 @@ outputs_written: list[Path] = []
 
 if excel_as_input:
     require(bool(excel_path_raw.strip()), "laser_params.excel_path is required when excel_as_input is true.")
-    excel_path = resolve_input_path(excel_path_raw, ["EXCEL"], "Excel file")
+    excel_path = resolve_input_path(excel_path_raw, EXCEL_SEARCH_DIRS, "Excel file")
 
     
     require(Path(excel_path).exists(), f"Excel file not found: {excel_path}")
 
-    df = load_excel_df(excel_path)
+    df = load_laser_params_df(excel_path)
     require(excel_start_idx < len(df), f"laser_params.excel_row_start={excel_row_start_1based} starts beyond available excel rows ({len(df)}).")
 
     rows_per_template = compute_rows_per_template(len(selected_flyers), assign_style, assign_x)
@@ -694,12 +847,29 @@ if excel_as_input:
         out_path = resolve_output_path(cfg, igsn_cfg, TEMPLATE_FILE, extra_name_parts=extra_parts)
         action = "overwrote" if out_path.exists() else "generated"
         template_tree.write(str(out_path), encoding="utf-8", xml_declaration=True)
+        csv_rows = build_physical_flyer_csv_rows(
+            cfg=cfg,
+            igsn_cfg=igsn_cfg,
+            template_sidecar=template_sidecar,
+            output_lbrn_path=out_path,
+            layer_assignment_map=build_layer_assignment_map_from_excel(
+                df=df,
+                selected_flyers=selected_flyers,
+                batch_rows=batch_rows,
+                assign_style=assign_style,
+                assign_x=assign_x,
+            ),
+            run_timestamp=run_timestamp,
+        )
+        csv_path = out_path.with_suffix(".csv")
+        write_physical_flyer_csv(csv_path, csv_rows)
 
         logging.info(
-            "%s %s LightBurn file '%s' with config '%s' and excel '%s' (batch %s, %s, applied=%s/%s).",
+            "%s %s LightBurn file '%s' and CSV summary '%s' with config '%s' and excel '%s' (batch %s, %s, applied=%s/%s).",
             (cfg.get("operator", "") or "Unknown operator").strip() or "Unknown operator",
             action,
             out_path,
+            csv_path,
             args.json,
             excel_path,
             batch_num,
@@ -732,12 +902,26 @@ else:
     out_path = resolve_output_path(cfg, igsn_cfg, TEMPLATE_FILE, extra_name_parts=["defaults"])
     action = "overwrote" if out_path.exists() else "generated"
     template_tree.write(str(out_path), encoding="utf-8", xml_declaration=True)
+    csv_rows = build_physical_flyer_csv_rows(
+        cfg=cfg,
+        igsn_cfg=igsn_cfg,
+        template_sidecar=template_sidecar,
+        output_lbrn_path=out_path,
+        layer_assignment_map=build_layer_assignment_map_from_defaults(
+            selected_flyers=selected_flyers,
+            cut_defaults=cut_defaults,
+        ),
+        run_timestamp=run_timestamp,
+    )
+    csv_path = out_path.with_suffix(".csv")
+    write_physical_flyer_csv(csv_path, csv_rows)
 
     logging.info(
-        "%s %s LightBurn file '%s' with config '%s' (excel_as_input=false; applied defaults to %s/%s selected flyers).",
+        "%s %s LightBurn file '%s' and CSV summary '%s' with config '%s' (excel_as_input=false; applied defaults to %s/%s selected flyers).",
         (cfg.get("operator", "") or "Unknown operator").strip() or "Unknown operator",
         action,
         out_path,
+        csv_path,
         args.json,
         applied,
         len(selected_flyers),

@@ -1,20 +1,12 @@
 {
   "ID": "1234",
   "operator": "mxb",
-  "igsn_config": "IGSN-CONFIGS/100um-aluminum.json",
+  "igsn_config": "100um-copper.json",
   "template": {
-    "file": "5x5stack.lbrn2",
+    "file": "7x7-stack-fulliso.lbrn2",
     "id_placeholder": "FLYID"
   },
-  "output": {
-    "dir": "output",
-    "dir_append_igsn": true,
-    "base": "stack",
-    "append_id": true,
-    "append_template": false,
-    "append_timestamp": true,
-    "overwrite": false
-  },
+  "output_overwrite": false,
   "flyer": {
     "selection": {
       "start": 1,

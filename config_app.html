@@ -358,14 +358,10 @@
       </div>
       <div id="outputSection">
         <div class="grid">
-          <div class="field"><label class="label-row" for="output_dir">Output Directory <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Directory where generated LightBurn files should be written.</span></span></label><input id="output_dir" value="output" /></div>
-          <div class="field"><label class="label-row" for="output_base">Output Base Name <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Base stem for output filenames before optional suffixes such as ID or timestamp.</span></span></label><input id="output_base" value="stack" /></div>
-        </div>
-        <div class="grid">
-          <label class="check"><input id="output_dir_append_igsn" type="checkbox" checked />Append IGSN to path</label>
-          <label class="check"><input id="output_append_id" type="checkbox" checked />Append ID to filename</label>
-          <label class="check"><input id="output_append_template" type="checkbox" />Append template to filename</label>
-          <label class="check"><input id="output_append_timestamp" type="checkbox" checked />Append timestamp to filename</label>
+          <div class="field">
+            <label class="label-row" for="output_note">Output Location <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Generated files are written to output/&lt;foil_igsn&gt;/&lt;stack_id&gt;/ as stack.lbrn2 and stack.csv.</span></span></label>
+            <input id="output_note" value="output/<foil_igsn>/<stack_id>/" readonly />
+          </div>
           <label class="check"><input id="output_overwrite" type="checkbox" />Overwrite existing file</label>
         </div>
       </div>
@@ -440,12 +436,6 @@
       output_locked: true,
       flyer_locked: true,
       foil_locked: true,
-      output_dir: "output",
-      output_base: "stack",
-      output_dir_append_igsn: true,
-      output_append_id: true,
-      output_append_template: false,
-      output_append_timestamp: true,
       output_overwrite: false,
       flyer_start: 1,
       flyer_end: "n",
@@ -827,8 +817,6 @@
       if (!getResolvedIgsnConfigPath()) addProblem("IGSN config path is required.", ["igsn_config", "igsn_config_select"]);
       if (!getResolvedTemplateFilePath()) addProblem("Template file path is required.", ["template_file", "template_file_select"]);
       if (!getText("template_id_placeholder")) addProblem("Template ID placeholder is required.", ["template_id_placeholder"]);
-      if (!getText("output_dir")) addProblem("Output dir is required.", ["output_dir"]);
-      if (!getText("output_base")) addProblem("Output base is required.", ["output_base"]);
       if (!(getNumber("flyer_start") > 0)) addProblem("Flyer selection start must be > 0.", ["flyer_start"]);
       if (!flyerEndRaw || (!flyerEndIsN && !(Number.isInteger(flyerEndNumber) && flyerEndNumber > 0))) addProblem("Flyer selection end must be a positive integer or n.", ["flyer_end"]);
       if (getNumber("flyer_step") === 0) addProblem("Flyer selection step must not be 0.", ["flyer_step"]);
@@ -849,15 +837,7 @@
           file: getResolvedTemplateFilePath(),
           id_placeholder: getText("template_id_placeholder"),
         },
-        output: {
-          dir: getText("output_dir"),
-          dir_append_igsn: getCheckbox("output_dir_append_igsn"),
-          base: getText("output_base"),
-          append_id: getCheckbox("output_append_id"),
-          append_template: getCheckbox("output_append_template"),
-          append_timestamp: getCheckbox("output_append_timestamp"),
-          overwrite: getCheckbox("output_overwrite"),
-        },
+        output_overwrite: getCheckbox("output_overwrite"),
         flyer: {
           selection: {
             start: getNumber("flyer_start"),
@@ -946,13 +926,7 @@
       updatePathOverrideUI("template_file", "template_file_select");
       $("template_id_placeholder").value = cfg.template?.id_placeholder ?? defaults.template_id_placeholder;
 
-      $("output_dir").value = cfg.output?.dir ?? defaults.output_dir;
-      $("output_base").value = cfg.output?.base ?? defaults.output_base;
-      $("output_dir_append_igsn").checked = cfg.output?.dir_append_igsn ?? defaults.output_dir_append_igsn;
-      $("output_append_id").checked = cfg.output?.append_id ?? defaults.output_append_id;
-      $("output_append_template").checked = cfg.output?.append_template ?? defaults.output_append_template;
-      $("output_append_timestamp").checked = cfg.output?.append_timestamp ?? defaults.output_append_timestamp;
-      $("output_overwrite").checked = cfg.output?.overwrite ?? defaults.output_overwrite;
+      $("output_overwrite").checked = cfg.output_overwrite ?? cfg.output?.overwrite ?? defaults.output_overwrite;
 
       $("flyer_start").value = cfg.flyer?.selection?.start ?? defaults.flyer_start;
       $("flyer_end").value = String(cfg.flyer?.selection?.end ?? defaults.flyer_end);

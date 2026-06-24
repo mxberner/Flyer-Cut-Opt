@@ -1,21 +1,19 @@
-# Flyer-Cut-Opt
-A host of projects designed to optimize the machining of flyers for HELIX with AIMD. 
+# Flyer Stack Machining
 
-## Execution
-To execute create flyer stack, `cfstack.py`, provide the required positional arguments:
-`python cfstack.py {config-json}`
+Tools for generating a LightBurn `.lbrn2` Flyer Stack.
 
-The excel-sheet expects columns `maxPower`, `QPulseWidth`, `speed`,	`frequency`, and `numPasses` (with these labels in row1). The script should automatically parse a properly formatted template lightburn file specificated in the config.
+## Run the tool
 
-## Contents
-`cfstack.py`: script accepts a excel sheet of laser parameters and JSON and compiles a `.lbrn2` lightburn project file according to the provided specifications.
+```bash
+python cfstack.py [config.json]
+```
 
-`config_app.html`: html form that helps create a JSON of run parameters for the script. 
+## Repository layout
 
-`LB-TEMPLATES`: directory of formatted lightburn files for the script.
-
-`IGSN-CONFIGS`: directory of foil/material metadata for data linking. 
-
-`EXCEL`: directory of formatted excel sheets for the script
-
-`CONFIGS`: directory of formatted config json for the script. 
+- `cfstack.py`: main script.
+- `inputs/configs/`: run-config JSON inputs.
+- `inputs/excel/`: laser parameter excel sheets.
+- `inputs/igsn/`: foil/material IGSN.
+- `inputs/templates/`: LightBurn template files and sidecar JSON metadata.
+- `config_app.html`: browser form for producing config JSON files.
+- `output/`: generated outputs written to `output/<igsn>/<stack_id>/`.
