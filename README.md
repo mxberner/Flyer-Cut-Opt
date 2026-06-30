@@ -8,6 +8,11 @@ Tools for generating a LightBurn `.lbrn2` Flyer Stack.
 python cfstack.py [config.json]
 ```
 
+## Stack IDs
+
+- New stack IDs should use a 5-character Crockford Base32 format such as `0000Z`.
+- Older legacy stack IDs used the form `F###`.
+
 ## Repository layout
 
 - `cfstack.py`: main script.

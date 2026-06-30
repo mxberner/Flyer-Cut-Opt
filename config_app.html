@@ -278,8 +278,8 @@
       <h2>Experiment</h2>
       <div class="grid">
         <div class="field">
-          <label class="label-row" for="ID">ID <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">4-digit alphanumerical stack identifier.</span></span></label>
-          <input id="ID" value="" />
+          <label class="label-row" for="ID">ID <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Use a 5-character (Crockford Base32) or legacy stack ID></span></label>
+          <input id="ID" value="auto" placeholder="auto" />
         </div>
         <div class="field">
           <label class="label-row" for="operator">Operator <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">Operator initials or name.</span></span></label>
@@ -318,18 +318,9 @@
           </div>
           <input id="templateFolderPicker" class="hidden" type="file" webkitdirectory directory multiple />
         </div>
-      <div class="grid">
-        <div class="field">
-          <label class="label-row" for="template_id_placeholder">
-            ID Placeholder
-            <span class="help-wrap">
-              <span class="help-icon" tabindex="0">?</span>
-              <span class="tooltip">Exact text in the LightBurn template that is replaced with the stack ID.</span>
-            </span>
-            <button type="button" id="flyidLockBtn" class="lock-btn" title="Unlock FLYID field">🔒</button>
-          </label>
-          <input id="template_id_placeholder" value="FLYID" readonly />
-        </div>
+      <div class="field">
+        <label class="label-row" for="template_id_placeholder">ID Placeholder <span class="help-wrap"><span class="help-icon" tabindex="0">?</span><span class="tooltip">This value is read from the template sidecar placeholder_id at runtime and is no longer stored in the run-config.</span></span></label>
+        <input id="template_id_placeholder" value="Read from template sidecar at runtime" readonly />
       </div>
 
       <h2>Laser Params</h2>
@@ -349,7 +340,7 @@
       </div>
       <div class="grid">
         <label class="check"><input id="excel_as_input" type="checkbox" checked />Use Excel as input</label>
-        <label class="check"><input id="excel_exhaust" type="checkbox" />Exhaust Excel</label>
+        <label class="check locked"><input id="excel_exhaust" type="checkbox" disabled />Exhaust Excel (temporarily disabled)</label>
       </div>
 
       <div class="section-heading">
@@ -427,12 +418,11 @@
     let buildAttempted = false;
 
     const defaults = {
-      ID: "",
+      ID: "auto",
       operator: "",
       igsn_config: "",
       template_file: "",
-      template_id_placeholder: "FLYID",
-      template_id_locked: true,
+      template_id_placeholder: "Read from template sidecar at runtime",
       output_locked: true,
       flyer_locked: true,
       foil_locked: true,
@@ -465,7 +455,6 @@
       ],
       igsnFileByPath: new Map(),
       templateFileByPath: new Map(),
-      templateIdLocked: true,
       lastBuildValid: false,
       sectionLocks: {
         output: true,
@@ -497,7 +486,6 @@
         if (el.type === "checkbox") el.checked = !!v;
         else el.value = v;
       }
-      setTemplateIdLock(data.template_id_locked ?? true);
       setSectionLock("output", data.output_locked ?? true);
       setSectionLock("flyer", data.flyer_locked ?? true);
       setSectionLock("foil", data.foil_locked ?? true);
@@ -742,15 +730,6 @@
       return false;
     }
 
-    function setTemplateIdLock(isLocked) {
-      state.templateIdLocked = !!isLocked;
-      const input = $("template_id_placeholder");
-      const btn = $("flyidLockBtn");
-      input.readOnly = state.templateIdLocked;
-      btn.textContent = state.templateIdLocked ? "🔒" : "🔓";
-      btn.title = state.templateIdLocked ? "Unlock FLYID field" : "Lock FLYID field";
-    }
-
     function setSectionLock(sectionName, isLocked) {
       state.sectionLocks[sectionName] = !!isLocked;
       const root = $(`${sectionName}Section`);
@@ -812,11 +791,10 @@
       const flyerEndIsN = flyerEndRaw.toLowerCase() === "n";
       const flyerEndNumber = Number(flyerEndRaw);
 
-      if (!/^\d{4}$/.test(getText("ID"))) addProblem("ID should be exactly 4 digits.", ["ID"]);
+      if (getText("ID") && !/^(auto|F\d{3}|[0-9A-HJKMNP-TV-Z]{5})$/i.test(getText("ID"))) addProblem("ID must be blank, auto, a legacy F### ID, or a 5-character Crockford ID.", ["ID"]);
       if (!getText("operator")) addProblem("Operator is required.", ["operator"]);
       if (!getResolvedIgsnConfigPath()) addProblem("IGSN config path is required.", ["igsn_config", "igsn_config_select"]);
       if (!getResolvedTemplateFilePath()) addProblem("Template file path is required.", ["template_file", "template_file_select"]);
-      if (!getText("template_id_placeholder")) addProblem("Template ID placeholder is required.", ["template_id_placeholder"]);
       if (!(getNumber("flyer_start") > 0)) addProblem("Flyer selection start must be > 0.", ["flyer_start"]);
       if (!flyerEndRaw || (!flyerEndIsN && !(Number.isInteger(flyerEndNumber) && flyerEndNumber > 0))) addProblem("Flyer selection end must be a positive integer or n.", ["flyer_end"]);
       if (getNumber("flyer_step") === 0) addProblem("Flyer selection step must not be 0.", ["flyer_step"]);
@@ -835,7 +813,6 @@
         igsn_config: getResolvedIgsnConfigPath(),
         template: {
           file: getResolvedTemplateFilePath(),
-          id_placeholder: getText("template_id_placeholder"),
         },
         output_overwrite: getCheckbox("output_overwrite"),
         flyer: {
@@ -853,7 +830,7 @@
           excel_path: getText("excel_path"),
           excel_as_input: getCheckbox("excel_as_input"),
           excel_row_start: getNumber("excel_row_start"),
-          excel_exhaust: getCheckbox("excel_exhaust"),
+          excel_exhaust: false,
         },
         thickness: {
           glass: {
@@ -924,7 +901,7 @@
         $("template_file").value = templatePath;
       }
       updatePathOverrideUI("template_file", "template_file_select");
-      $("template_id_placeholder").value = cfg.template?.id_placeholder ?? defaults.template_id_placeholder;
+      $("template_id_placeholder").value = defaults.template_id_placeholder;
 
       $("output_overwrite").checked = cfg.output_overwrite ?? cfg.output?.overwrite ?? defaults.output_overwrite;
 
@@ -937,7 +914,7 @@
       $("excel_path").value = cfg.laser_params?.excel_path ?? defaults.excel_path;
       $("excel_row_start").value = cfg.laser_params?.excel_row_start ?? defaults.excel_row_start;
       $("excel_as_input").checked = cfg.laser_params?.excel_as_input ?? defaults.excel_as_input;
-      $("excel_exhaust").checked = cfg.laser_params?.excel_exhaust ?? defaults.excel_exhaust;
+      $("excel_exhaust").checked = false;
 
       $("glass_tl_mm").value = cfg.thickness?.glass?.tl_mm ?? defaults.glass_tl_mm;
       $("glass_tr_mm").value = cfg.thickness?.glass?.tr_mm ?? defaults.glass_tr_mm;
@@ -950,7 +927,6 @@
       $("foil_bl_um").value = foil.bl_um ?? defaults.foil_bl_um;
       $("foil_br_um").value = foil.br_um ?? defaults.foil_br_um;
 
-      setTemplateIdLock(cfg.template_id_locked ?? defaults.template_id_locked);
       setSectionLock("output", cfg.output_locked ?? defaults.output_locked);
       setSectionLock("flyer", cfg.flyer_locked ?? defaults.flyer_locked);
       setSectionLock("foil", cfg.foil_locked ?? defaults.foil_locked);
@@ -989,11 +965,6 @@
       const found = syncFoilThicknessFromSelectedIgsn();
       buildJson();
       setStatus(found ? "Updated foil thickness from selected IGSN config." : "Selected IGSN config does not expose a readable thickness value.", found ? "good" : "bad");
-    });
-
-    $("flyidLockBtn").addEventListener("click", () => {
-      setTemplateIdLock(!state.templateIdLocked);
-      buildJson();
     });
 
     $("outputLockBtn").addEventListener("click", () => {

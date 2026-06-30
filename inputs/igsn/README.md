@@ -9,4 +9,4 @@ Associate each sample with the respective material IGSN on the dataportal.
 Provide defaults for control variables that appropriate for the metal and thickness.
 
 **Metadata Packaging**
-Handles metadata. 
+Handles metadata linking across stacks with a similar base foil.

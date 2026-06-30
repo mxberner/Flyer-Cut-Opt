@@ -1,0 +1,54 @@
+{
+  "reserved_ids": {
+    "00000": {
+      "assigned_at": "2026-06-26T12:24:55",
+      "config": "/var/folders/vd/z033x6cd5pv4gp1jt750qvgr0000gn/T/tmpz45lyax0.json",
+      "mode": "auto"
+    },
+    "00001": {
+      "assigned_at": "2026-06-26T12:26:38",
+      "config": "inputs/configs/1234config.json",
+      "mode": "auto"
+    },
+    "00002": {
+      "assigned_at": "2026-06-26T12:37:23",
+      "config": "inputs/configs/1234config.json",
+      "mode": "auto"
+    },
+    "00003": {
+      "assigned_at": "2026-06-26T12:37:53",
+      "config": "/Users/mxb/Documents/GitHub/Flyer-Cut-Opt/inputs/configs/1234config.json",
+      "mode": "auto"
+    },
+    "00004": {
+      "assigned_at": "2026-06-26T12:42:46",
+      "config": "inputs/configs/1234config.json",
+      "mode": "auto"
+    },
+    "00005": {
+      "assigned_at": "2026-06-26T12:44:18",
+      "config": "inputs/configs/1234config.json",
+      "mode": "auto"
+    },
+    "00006": {
+      "assigned_at": "2026-06-26T12:44:39",
+      "config": "inputs/configs/1234config.json",
+      "mode": "auto"
+    },
+    "00007": {
+      "assigned_at": "2026-06-26T12:49:04",
+      "config": "/Users/mxb/Documents/GitHub/Flyer-Cut-Opt/inputs/configs/1234config.json",
+      "mode": "auto"
+    },
+    "00008": {
+      "assigned_at": "2026-06-26T12:51:18",
+      "config": "inputs/configs/1234config.json",
+      "mode": "auto"
+    },
+    "00009": {
+      "assigned_at": "2026-06-30T16:17:08",
+      "config": "inputs/configs/1234config.json",
+      "mode": "auto"
+    }
+  }
+}

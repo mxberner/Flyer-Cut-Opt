@@ -11,12 +11,13 @@ import logging
 import math
 import sys
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
 import pandas as pd
 
-from stack_id_utils import is_valid_stack_id
+from stack_id_utils import int_to_crockford, is_auto_stack_id, is_valid_stack_id
 
 
 """
@@ -27,6 +28,7 @@ IGSN_SEARCH_DIRS = ["inputs/igsn", "IGSN-CONFIGS"]
 TEMPLATE_SEARCH_DIRS = ["inputs/templates", "LB-TEMPLATES", "TEMPLATES"]
 EXCEL_SEARCH_DIRS = ["inputs/excel", "EXCEL"]
 DEFAULT_OUTPUT_ROOT = "output"
+STACK_ID_CACHE_PATH = Path("inputs/cache/stack_id_cache.json")
 
 
 # ----------------------------
@@ -124,12 +126,23 @@ def load_json(path_str: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def write_json(path: Path, payload: dict) -> None:
+    """Write a JSON payload with stable formatting."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def require(cond: bool, msg: str) -> None:
     """
     require: Assert that a condition is true, otherwise raise a ValueError with the provided message.
     """
     if not cond:
         raise ValueError(msg)
+
+
+def _debug(msg: str, *args) -> None:
+    """Convenience helper for verbose-only logging."""
+    logging.debug(msg, *args)
 
 
 def _safe_token(s: str) -> str:
@@ -179,6 +192,10 @@ def validate_top_level_config(cfg: dict) -> None:
         require(key in cfg, f"Missing required config field: {key}")
 
     require(str(cfg["ID"]).strip(), "ID is required.")
+    require(
+        is_valid_stack_id(str(cfg["ID"]).strip()),
+        "ID must be either a legacy F### ID or a 5-character Crockford ID.",
+    )
     require(str(cfg["operator"]).strip(), "operator is required.")
 
     template = cfg["template"]
@@ -192,7 +209,6 @@ def validate_top_level_config(cfg: dict) -> None:
     require(isinstance(thickness, dict), "thickness must be an object.")
 
     require(str(template.get("file", "")).strip(), "template.file is required.")
-    require(str(template.get("id_placeholder", "")).strip(), "template.id_placeholder is required.")
 
     flyer_selection = flyer.get("selection", {})
     flyer_assignment = flyer.get("assignment", {})
@@ -259,6 +275,60 @@ def normalize_thickness(cfg: dict, igsn_cfg: dict) -> dict:
     return resolved
 
 
+def load_stack_id_cache() -> dict:
+    """Load or initialize the local stack ID reservation cache."""
+    if STACK_ID_CACHE_PATH.exists():
+        cache = json.loads(STACK_ID_CACHE_PATH.read_text(encoding="utf-8"))
+    else:
+        cache = {"reserved_ids": {}}
+    cache.setdefault("reserved_ids", {})
+    require(isinstance(cache["reserved_ids"], dict), "stack ID cache reserved_ids must be an object.")
+    return cache
+
+
+def reserve_stack_id(cfg: dict, cache: dict, cache_path: Path) -> str:
+    """Assign or reserve a stack ID against the local cache."""
+    raw_id = str(cfg.get("ID", "") or "")
+    normalized_id = raw_id.strip().upper()
+    reserved_ids = cache.setdefault("reserved_ids", {})
+    reservation_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    config_ref = str(cfg.get("_config_path", ""))
+
+    if is_auto_stack_id(normalized_id):
+        next_int = 0
+        while True:
+            candidate = int_to_crockford(next_int)
+            if candidate not in reserved_ids:
+                normalized_id = candidate
+                break
+            next_int += 1
+        cfg["ID"] = normalized_id
+        reserved_ids[normalized_id] = {
+            "assigned_at": reservation_time,
+            "config": config_ref,
+            "mode": "auto",
+        }
+        write_json(cache_path, cache)
+        logging.info("Assigned stack ID '%s' from local cache '%s'.", normalized_id, cache_path)
+        return normalized_id
+
+    if normalized_id in reserved_ids:
+        logging.warning(
+            "Stack ID '%s' is already present in cache '%s'. This run may be using an unsafe ID assignment.",
+            normalized_id,
+            cache_path,
+        )
+        return normalized_id
+
+    reserved_ids[normalized_id] = {
+        "assigned_at": reservation_time,
+        "config": config_ref,
+        "mode": "manual",
+    }
+    write_json(cache_path, cache)
+    return normalized_id
+
+
 # ----------------------------
 # OUTPUT / SIDECAR HELPERS
 # ----------------------------
@@ -271,43 +341,55 @@ def resolve_output_dir(cfg: dict, igsn_cfg: dict) -> Path:
     return out_dir
 
 
-def build_output_stem(extra_name_parts: list[str] | None = None) -> str:
-    """Build a deterministic output stem under the standard output directory."""
-    parts = ["stack"]
-    if extra_name_parts:
-        parts.extend(_safe_token(part) for part in extra_name_parts if part)
-    return "-".join(part for part in parts if part)
+def build_output_stem(cfg: dict, artifact: str) -> str:
+    """Build a deterministic output stem for one artifact type."""
+    stack_id = _safe_token(str(cfg.get("ID", "")).strip() or "unknown-stack")
+    return f"stack{stack_id}-{artifact}"
+
+
+def build_companion_output_path(layout_path: Path, artifact: str, suffix: str) -> Path:
+    """Build a sibling output path that preserves any uniqueness suffix from the layout file."""
+    name = layout_path.stem
+    if "-layout-" in name:
+        prefix, unique_suffix = name.split("-layout-", 1)
+        companion_stem = f"{prefix}-{artifact}-{unique_suffix}"
+    elif name.endswith("-layout"):
+        companion_stem = f"{name[:-7]}-{artifact}"
+    else:
+        companion_stem = name.replace("layout", artifact)
+    return layout_path.with_name(f"{companion_stem}{suffix}")
 
 
 def resolve_output_path(
     cfg: dict,
     igsn_cfg: dict,
     template_file: str,
-    extra_name_parts: list[str] | None = None,
-) -> Path:
-    """Build output path under the standard output directory."""
+) -> tuple[Path, bool, bool, str]:
+    """Build output path under the standard output directory with safety flags."""
     legacy_output_cfg = cfg.get("output", {}) or {}
     out_dir = resolve_output_dir(cfg, igsn_cfg)
-    stem = build_output_stem(extra_name_parts=extra_name_parts)
+    stem = build_output_stem(cfg, "layout")
     suffix = Path(template_file).suffix or ".lbrn2"
     out_path = out_dir / f"{stem}{suffix}"
     overwrite = bool(cfg.get("output_overwrite", legacy_output_cfg.get("overwrite", False)))
 
-    if overwrite or not out_path.exists():
-        return out_path
+    if overwrite and out_path.exists():
+        return out_path, False, False, "overwrote"
+    if not out_path.exists():
+        return out_path, True, True, "generated"
 
     i = 1
     while True:
         candidate = out_dir / f"{stem}-{i}{suffix}"
         if not candidate.exists():
-            return candidate
+            return candidate, True, False, "generated"
         i += 1
 
 
 def validate_template_sidecar(sidecar: dict, template_filename: str) -> None:
     """Validate the expected template sidecar format used for CSV summaries."""
     require(isinstance(sidecar, dict), "Template sidecar must be a JSON object.")
-    for key in ("template", "version", "creator", "placeholder_id", "physical_flyers"):
+    for key in ("template", "version", "timestamp", "creator", "placeholder_id", "physical_flyers"):
         require(key in sidecar, f"Template sidecar missing required field: {key}")
 
     require(
@@ -346,6 +428,21 @@ def _clean_assignment_value(key: str, value):
         except Exception:
             return value
     return value
+
+
+def _format_flyer_number(value):
+    """Round flyer metadata numbers to at most two relevant decimal places."""
+    if value in (None, ""):
+        return ""
+    try:
+        decimal_value = Decimal(str(value).strip())
+    except (InvalidOperation, ValueError, AttributeError):
+        return value
+
+    rounded = decimal_value.quantize(Decimal("0.01"))
+    if rounded == rounded.to_integral():
+        return int(rounded)
+    return float(rounded)
 
 
 def build_layer_assignment_map_from_excel(
@@ -390,27 +487,29 @@ def build_physical_flyer_csv_rows(
     rows: list[dict] = []
     foil_igsn = str(igsn_cfg.get("material", {}).get("igsn", "")).strip()
     stack_id = str(cfg.get("ID", "")).strip()
-    operator = str(cfg.get("operator", "")).strip()
 
     for flyer in template_sidecar.get("physical_flyers", []):
         layer = str(flyer.get("layer", "")).strip()
         position = str(flyer.get("position", "")).strip()
         assigned = layer_assignment_map.get(layer, {})
+        source_row = assigned.get("excel_row_1based", "")
+        source = f"E{source_row}" if str(source_row).strip() else "default"
 
         rows.append(
             {
                 "foil_igsn": foil_igsn,
                 "stack_id": stack_id,
-                "flyer_position": position,
+                "flyer_pos": position,
+                "group": source,
+                "status": "planned",
                 "laser_maxpower": assigned.get("maxPower", ""),
                 "laser_qpulsewidth": assigned.get("QPulseWidth", ""),
                 "laser_speed": assigned.get("speed", ""),
                 "laser_frequency": assigned.get("frequency", ""),
                 "laser_numpasses": assigned.get("numPasses", ""),
-                "operator": operator,
-                "timestamp": run_timestamp,
-                "output_file": output_lbrn_path.name,
-                "source_row": assigned.get("excel_row_1based", ""),
+                "t1": run_timestamp,
+                "t2": "",
+                "t3": "",
             }
         )
 
@@ -422,18 +521,80 @@ def write_physical_flyer_csv(csv_path: Path, rows: list[dict]) -> None:
     columns = [
         "foil_igsn",
         "stack_id",
-        "flyer_position",
+        "flyer_pos",
+        "status",
         "laser_maxpower",
         "laser_qpulsewidth",
         "laser_speed",
         "laser_frequency",
         "laser_numpasses",
-        "operator",
-        "timestamp",
-        "output_file",
-        "source_row",
+        "t1",
+        "t2",
+        "t3",
     ]
     pd.DataFrame(rows, columns=columns).to_csv(csv_path, index=False)
+
+
+def build_output_metadata(
+    cfg: dict,
+    igsn_cfg: dict,
+    igsn_path: Path,
+    template_sidecar: dict,
+    resolved_thickness: dict,
+    output_lbrn_path: Path,
+    source_label: str,
+    overwrite_safe: bool,
+    unique_safe: bool,
+    csv_rows: list[dict],
+) -> dict:
+    """Build the JSON metadata companion file for an output set."""
+    sidecar_flyers = {
+        str(flyer.get("position", "")).strip(): flyer
+        for flyer in template_sidecar.get("physical_flyers", [])
+    }
+    material_cfg = igsn_cfg.get("material", {}) or {}
+    flyers: list[dict] = []
+
+    for row in csv_rows:
+        sidecar = sidecar_flyers.get(row["flyer_pos"], {})
+        flyers.append(
+            {
+                "position": row["flyer_pos"],
+                "layer": sidecar.get("layer", ""),
+                "xpos": _format_flyer_number(sidecar.get("xpos", "")),
+                "ypos": _format_flyer_number(sidecar.get("ypos", "")),
+                "group": row.get("group", ""),
+                "laser_maxpower": _format_flyer_number(row.get("laser_maxpower", "")),
+                "laser_qpulsewidth": _format_flyer_number(row.get("laser_qpulsewidth", "")),
+                "laser_speed": _format_flyer_number(row.get("laser_speed", "")),
+                "laser_frequency": _format_flyer_number(row.get("laser_frequency", "")),
+                "laser_numpasses": _format_flyer_number(row.get("laser_numpasses", "")),
+            }
+        )
+
+    return {
+        "ID": str(cfg.get("ID", "")).strip(),
+        "operator": str(cfg.get("operator", "")).strip(),
+        "template": {
+            "name": str(template_sidecar.get("template", "")).strip(),
+            "version": str(template_sidecar.get("version", "")).strip(),
+            "created": str(template_sidecar.get("timestamp", "")).strip(),
+        },
+        "thickness": resolved_thickness,
+        "material": {
+            "name": material_cfg.get("name", ""),
+            "local_id": material_cfg.get("local_id", ""),
+            "igsn": material_cfg.get("igsn", ""),
+            "thickness_um": material_cfg.get("thickness_um", ""),
+            "config_name": igsn_path.name,
+            "config_version": igsn_cfg.get("version", ""),
+            "config_created": str(igsn_cfg.get("timestamp", "")).strip(),
+        },
+        "overwrite_safe": overwrite_safe,
+        "unique_safe": unique_safe and overwrite_safe,
+        "source": source_label,
+        "flyers": flyers,
+    }
 
 
 # ----------------------------
@@ -480,7 +641,7 @@ def list_flyers_in_range(root: ET.Element, start: int = 1, end: int | str | None
             n += step_i
 
         if found:
-            logging.info(
+            _debug(
                 "Flyer selection requested: %s..n step %s. Resolved through last sequential flyer %s. Found %s flyer(s).",
                 start_i,
                 step_i,
@@ -488,7 +649,7 @@ def list_flyers_in_range(root: ET.Element, start: int = 1, end: int | str | None
                 len(found),
             )
         else:
-            logging.info(
+            _debug(
                 "Flyer selection requested: %s..n step %s. No sequential flyers found starting at %s.",
                 start_i,
                 step_i,
@@ -509,9 +670,9 @@ def list_flyers_in_range(root: ET.Element, start: int = 1, end: int | str | None
         else:
             found.append(n)
 
-    logging.info(f"Flyer selection requested: {lo}..{hi} step {step_i}. Found {len(found)} flyer(s).")
+    _debug("Flyer selection requested: %s..%s step %s. Found %s flyer(s).", lo, hi, step_i, len(found))
     if missing:
-        logging.debug(f"Missing flyers in template within selection: {missing}")
+        _debug("Missing flyers in template within selection: %s", missing)
     return found
 
 
@@ -615,6 +776,14 @@ def igsn_cut_to_lightburn_fields(igsn_cfg: dict) -> dict:
     """
     igsn_cut_to_lightburn_fields: Map IGSN cut parameters to LightBurn CutSetting fields for use as defaults when excel_as_input is false.
     """
+    laser_defaults = igsn_cfg.get("laser_defaults", {}) or {}
+    if laser_defaults:
+        out: dict = {}
+        for key in ("maxPower", "minPower", "QPulseWidth", "speed", "frequency", "numPasses"):
+            if key in laser_defaults:
+                out[key] = laser_defaults.get(key)
+        return out
+
     cut = igsn_cfg.get("cut", {}) or {}
     out: dict = {}
 
@@ -738,6 +907,9 @@ def describe_batch_rows(rows: list[int], start_idx: int) -> str:
 # ----------------------------
 config_path = resolve_input_path(args.json, CONFIG_SEARCH_DIRS, "Config JSON")
 cfg = load_json(str(config_path))
+cfg["_config_path"] = str(config_path)
+stack_id_cache = load_stack_id_cache()
+reserve_stack_id(cfg, stack_id_cache, STACK_ID_CACHE_PATH)
 validate_top_level_config(cfg)
 
 
@@ -746,31 +918,43 @@ igsn_cfg = load_json(str(igsn_path))
 resolved_thickness = normalize_thickness(cfg, igsn_cfg)
 
 logging.info(f"Loaded config '{args.json}'.")
-logging.info(f"Loaded IGSN config '{cfg['igsn_config']}'.")
-logging.info(f"Resolved thickness: {json.dumps(resolved_thickness, sort_keys=True)}")
+logging.info(
+    "Loaded IGSN config '%s' (version=%s).",
+    cfg["igsn_config"],
+    igsn_cfg.get("version", ""),
+)
+_debug("Resolved thickness: %s", json.dumps(resolved_thickness, sort_keys=True))
 
 template_cfg = cfg["template"]
 flyer_cfg = cfg["flyer"]
 laser_cfg = cfg["laser_params"]
 
 TEMPLATE_FILE = resolve_input_path(template_cfg["file"], TEMPLATE_SEARCH_DIRS, "Template file")
-TMP_ID_PLACEHOLDER = template_cfg["id_placeholder"]
 
 if not Path(TEMPLATE_FILE).exists():
     raise FileNotFoundError(f"Template file not found: {TEMPLATE_FILE}")
 
 template_sidecar_path, template_sidecar = load_template_sidecar(str(TEMPLATE_FILE))
-require(
-    str(template_sidecar.get("placeholder_id", "")).strip() == str(TMP_ID_PLACEHOLDER).strip(),
-    "Template sidecar placeholder_id does not match template.id_placeholder from config.",
+TMP_ID_PLACEHOLDER = str(template_sidecar.get("placeholder_id", "")).strip()
+require(TMP_ID_PLACEHOLDER, "Template sidecar placeholder_id is required.")
+logging.info(
+    "Loaded template sidecar '%s' (template=%s, version=%s).",
+    template_sidecar_path,
+    template_sidecar.get("template", ""),
+    template_sidecar.get("version", ""),
 )
-logging.info(f"Loaded template sidecar '{template_sidecar_path}'.")
 
 excel_as_input = bool(laser_cfg.get("excel_as_input", True))
 excel_path_raw = str(laser_cfg.get("excel_path", "") or "")
 excel_row_start_1based = _int(laser_cfg.get("excel_row_start", 1), 1)
 excel_start_idx = max(0, excel_row_start_1based - 1)
-excel_exhaust = bool(laser_cfg.get("excel_exhaust", False))
+excel_exhaust_requested = bool(laser_cfg.get("excel_exhaust", False))
+excel_exhaust = False
+if excel_exhaust_requested:
+    logging.warning(
+        "laser_params.excel_exhaust=true was requested, but Excel exhaust functionality is temporarily disabled. "
+        "Proceeding with a single output batch."
+    )
 run_timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 template_tree_base = ET.parse(TEMPLATE_FILE)
@@ -793,6 +977,7 @@ assign_style = assignment_cfg.get("style", "exact")
 assign_x = _int(assignment_cfg.get("x", 1), 1)
 
 outputs_written: list[Path] = []
+metadata_written: list[Path] = []
 
 if excel_as_input:
     require(bool(excel_path_raw.strip()), "laser_params.excel_path is required when excel_as_input is true.")
@@ -838,14 +1023,17 @@ if excel_as_input:
             str(cfg.get("ID", "0000")),
         )
         if validation_count == 0:
-            logging.warning("No instances of template.id_placeholder were found in template.")
+            logging.warning("No instances of template sidecar placeholder_id were found in template.")
 
         extra_parts = None
         if excel_exhaust:
             extra_parts = [describe_batch_rows(batch_rows, excel_start_idx), f"batch{batch_num}"]
 
-        out_path = resolve_output_path(cfg, igsn_cfg, TEMPLATE_FILE, extra_name_parts=extra_parts)
-        action = "overwrote" if out_path.exists() else "generated"
+        out_path, overwrite_safe, unique_safe, action = resolve_output_path(
+            cfg,
+            igsn_cfg,
+            TEMPLATE_FILE,
+        )
         template_tree.write(str(out_path), encoding="utf-8", xml_declaration=True)
         csv_rows = build_physical_flyer_csv_rows(
             cfg=cfg,
@@ -861,15 +1049,30 @@ if excel_as_input:
             ),
             run_timestamp=run_timestamp,
         )
-        csv_path = out_path.with_suffix(".csv")
+        csv_path = build_companion_output_path(out_path, "inventory", ".csv")
         write_physical_flyer_csv(csv_path, csv_rows)
+        metadata = build_output_metadata(
+            cfg=cfg,
+            igsn_cfg=igsn_cfg,
+            igsn_path=igsn_path,
+            template_sidecar=template_sidecar,
+            resolved_thickness=resolved_thickness,
+            output_lbrn_path=out_path,
+            source_label=str(excel_path),
+            overwrite_safe=overwrite_safe,
+            unique_safe=unique_safe,
+            csv_rows=csv_rows,
+        )
+        metadata_path = build_companion_output_path(out_path, "metadata", ".json")
+        write_json(metadata_path, metadata)
 
         logging.info(
-            "%s %s LightBurn file '%s' and CSV summary '%s' with config '%s' and excel '%s' (batch %s, %s, applied=%s/%s).",
+            "%s %s LightBurn file '%s', CSV inventory '%s', and metadata '%s' with config '%s' and excel '%s' (batch %s, %s, applied=%s/%s).",
             (cfg.get("operator", "") or "Unknown operator").strip() or "Unknown operator",
             action,
             out_path,
             csv_path,
+            metadata_path,
             args.json,
             excel_path,
             batch_num,
@@ -878,6 +1081,7 @@ if excel_as_input:
             len(selected_flyers),
         )
         outputs_written.append(out_path)
+        metadata_written.append(metadata_path)
 else:
     cut_defaults = igsn_cut_to_lightburn_fields(igsn_cfg)
     if not cut_defaults:
@@ -897,10 +1101,13 @@ else:
         str(cfg.get("ID", "0000")),
     )
     if validation_count == 0:
-        logging.warning("No instances of template.id_placeholder were found in template.")
+        logging.warning("No instances of template sidecar placeholder_id were found in template.")
 
-    out_path = resolve_output_path(cfg, igsn_cfg, TEMPLATE_FILE, extra_name_parts=["defaults"])
-    action = "overwrote" if out_path.exists() else "generated"
+    out_path, overwrite_safe, unique_safe, action = resolve_output_path(
+        cfg,
+        igsn_cfg,
+        TEMPLATE_FILE,
+    )
     template_tree.write(str(out_path), encoding="utf-8", xml_declaration=True)
     csv_rows = build_physical_flyer_csv_rows(
         cfg=cfg,
@@ -913,22 +1120,40 @@ else:
         ),
         run_timestamp=run_timestamp,
     )
-    csv_path = out_path.with_suffix(".csv")
+    csv_path = build_companion_output_path(out_path, "inventory", ".csv")
     write_physical_flyer_csv(csv_path, csv_rows)
+    metadata = build_output_metadata(
+        cfg=cfg,
+        igsn_cfg=igsn_cfg,
+        igsn_path=igsn_path,
+        template_sidecar=template_sidecar,
+        resolved_thickness=resolved_thickness,
+        output_lbrn_path=out_path,
+        source_label="defaults",
+        overwrite_safe=overwrite_safe,
+        unique_safe=unique_safe,
+        csv_rows=csv_rows,
+    )
+    metadata_path = build_companion_output_path(out_path, "metadata", ".json")
+    write_json(metadata_path, metadata)
 
     logging.info(
-        "%s %s LightBurn file '%s' and CSV summary '%s' with config '%s' (excel_as_input=false; applied defaults to %s/%s selected flyers).",
+        "%s %s LightBurn file '%s', CSV inventory '%s', and metadata '%s' with config '%s' (excel_as_input=false; applied defaults to %s/%s selected flyers).",
         (cfg.get("operator", "") or "Unknown operator").strip() or "Unknown operator",
         action,
         out_path,
         csv_path,
+        metadata_path,
         args.json,
         applied,
         len(selected_flyers),
     )
     outputs_written.append(out_path)
+    metadata_written.append(metadata_path)
 
 logging.info(f"Total LightBurn outputs written: {len(outputs_written)}")
 for p in outputs_written:
+    logging.info(f"  - {p}")
+for p in metadata_written:
     logging.info(f"  - {p}")
 logging.info("-------------------Completed cfstack script-------------------")

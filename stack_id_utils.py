@@ -6,6 +6,7 @@ from __future__ import annotations
 
 CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 CROCKFORD_WIDTH = 5
+AUTO_STACK_ID_TOKENS = {"", "AUTO"}
 
 
 def normalize_crockford(value: str) -> str:
@@ -13,10 +14,15 @@ def normalize_crockford(value: str) -> str:
     return str(value or "").strip().upper()
 
 
-def is_legacy_numeric_id(value: str) -> bool:
-    """Legacy IDs are 4-digit numeric identifiers."""
-    normalized = str(value or "").strip()
-    return len(normalized) == 4 and normalized.isdigit()
+def is_auto_stack_id(value: str) -> bool:
+    """Return True when the stack ID should be assigned automatically."""
+    return normalize_crockford(value) in AUTO_STACK_ID_TOKENS
+
+
+def is_legacy_stack_id(value: str) -> bool:
+    """Legacy IDs use the form F###."""
+    normalized = normalize_crockford(value)
+    return len(normalized) == 4 and normalized.startswith("F") and normalized[1:].isdigit()
 
 
 def is_crockford_id(value: str, width: int = CROCKFORD_WIDTH) -> bool:
@@ -29,8 +35,8 @@ def is_crockford_id(value: str, width: int = CROCKFORD_WIDTH) -> bool:
 
 
 def is_valid_stack_id(value: str) -> bool:
-    """Support legacy 4-digit IDs and new fixed-width Crockford IDs."""
-    return is_legacy_numeric_id(value) or is_crockford_id(value)
+    """Support legacy F### IDs and new fixed-width Crockford IDs."""
+    return is_legacy_stack_id(value) or is_crockford_id(value)
 
 
 def int_to_crockford(value: int, width: int = CROCKFORD_WIDTH) -> str:

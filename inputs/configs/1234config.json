@@ -1,10 +1,9 @@
 {
-  "ID": "1234",
+  "ID": "auto",
   "operator": "mxb",
   "igsn_config": "100um-copper.json",
   "template": {
-    "file": "7x7-stack-fulliso.lbrn2",
-    "id_placeholder": "FLYID"
+    "file": "7x7-stack-fulliso.lbrn2"
   },
   "output_overwrite": false,
   "flyer": {
@@ -20,7 +19,7 @@
   },
   "laser_params": {
     "excel_path": "data.xlsx",
-    "excel_as_input": true,
+    "excel_as_input": false,
     "excel_row_start": 1,
     "excel_exhaust": false
   },
